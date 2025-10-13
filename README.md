@@ -1,6 +1,7 @@
 # BytecodeCompiler
 
-A simple bytecode compiler
+A simple bytecode compiler which I'll keep updating every monday
+
 
 ```
 x = 5 + 3
@@ -12,7 +13,6 @@ top
 # Bytecode
 
 ```
-
 PUSH 5
 PUSH 3
 ADD
