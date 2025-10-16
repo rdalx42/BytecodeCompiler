@@ -18,8 +18,16 @@ enum NODE_TYPE{
     AST_VAR_ASSIGN,
     AST_VAR_ACCESS,
     AST_PROGRAM,
+   
+    AST_GOTO_LABEL,
+    AST_GOTO,
+    AST_BLOCK_START,
+    AST_BLOCK_END,
     AST_NONE,
     AST_NEWLINE,
+    AST_IF,
+    AST_ELSE
+    
 };
 
 struct AST_NODE{
@@ -42,6 +50,7 @@ std::string node_type_to_string(NODE_TYPE& type);
 
 // ast
 
+AST_NODE* parse_comparison(AST& ast, int& index);
 AST_NODE* parse_program(AST& ast);
 AST_NODE* create_node(NODE_TYPE type, std::string value);
 
