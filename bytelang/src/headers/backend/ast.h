@@ -26,7 +26,8 @@ enum NODE_TYPE{
     AST_NONE,
     AST_NEWLINE,
     AST_IF,
-    AST_ELSE
+    AST_ELSE,
+    AST_WHILE
     
 };
 
