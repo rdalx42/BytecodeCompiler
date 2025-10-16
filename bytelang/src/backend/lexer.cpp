@@ -7,7 +7,7 @@ const std::string characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV
 int bytecode_tok_cnt = 0;
 
 const std::vector<std::string>bytecode_keywords={"PUSH", "POP", "ADD", "SUB", "MUL", "DIV", "STORE", "LOAD", "POP_ALL", "CLEANUP","TOP","NEG","NOTEQ","EQ","LT","LTE","GT","GTE","GOTO","BLOCK_END","BLOCK_START","SAFETY_LABEL"};
-const std::vector<std::string>keywords={"top","goto","do","end","if","else"};
+const std::vector<std::string>keywords={"top","goto","do","end","if","else","while"};
 
 char peek(LEXER& lex,int&index){
     if(index+1 < lex.content.size()){
