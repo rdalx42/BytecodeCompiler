@@ -40,6 +40,8 @@ else // else statement
     top // currently this is how we print stuff in a stack based machine
 end
 
+// currently there is no unary operations will add not(), negate() builtins later on
+ 
 ```
 
 # Bytecode
