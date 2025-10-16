@@ -1,31 +1,45 @@
 # BytecodeCompiler
 
-A simple bytecode compiler which I'll keep updating every monday
-
+A simple bytecode compiler which I'll keep updating every now and than
+<br>
 
 ```pascal
 
-iterator=0 // variable declarations 
+// example of capabilities
 
-::loop_start // goto label
-    iterator=iterator+1 
-    if iterator == 10000 do // if statements 
-        
-        goto ::loop_break // goto statemept
-    else // else brach
-      goto ::loop_start
-    end // end of block
-    
-goto ::loop_start
-
-do  // <-- scope block [do,end]
-  ::loop_break
-  5+5
-  5
-  top // top of stack call
+do // scopes
+    5
+    top
 end
 
-// currently there is no unary minus operation, i'll add a builtin called neg() for that in the near future
+
+// variables
+x = 10 
+exited=0
+
+// while loop
+while x < 100 do 
+    x=x+1
+    x // this just sets the top value of the stack
+    // we access it via 'top'
+
+    if x == 50 do  // if statements 
+        exited=1
+        goto ::loop_break  // goto statements
+    end
+    top
+end
+
+::loop_break
+
+if exited==1 do 
+    1 
+    top
+else // else statement
+    5
+    top // currently this is how we print stuff in a stack based machine
+end
+
 ```
 
 # Bytecode
