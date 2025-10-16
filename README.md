@@ -3,7 +3,7 @@
 A simple bytecode compiler which I'll keep updating every monday
 
 
-```lua
+```pascal
 
 iterator=0 // variable declarations 
 
