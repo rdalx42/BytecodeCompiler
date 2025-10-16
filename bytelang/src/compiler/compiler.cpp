@@ -19,7 +19,7 @@ COMPILER init(AST& ast, LEXER& lex) {
 
 void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
     
-    static int if_counter = 0;
+    static int builtin_goto_counter = 0;
     
     if (!nd) return;
 
@@ -44,6 +44,9 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
             break;
 
         case AST_BLOCK_START:
+            if(nd->value=="don't add"){
+                break;
+            }
             comp.bytecode += "BLOCK_START\n";
             break;
         case AST_BLOCK_END:
@@ -55,7 +58,7 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
             break;
 
         case AST_IF: {
-            int this_if = if_counter++;
+            int this_if = builtin_goto_counter++;
             AST_NODE* condition = nd->children[0];
             AST_NODE* then_block = nd->children[1];
             AST_NODE* else_block = (nd->children.size() > 2) ? nd->children[2] : nullptr;
@@ -84,6 +87,32 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
                 comp.bytecode += ">" + else_label + "\n";
                 comp.bytecode += "SAFETY_LABEL\n";
             }
+            return;
+        }
+
+        case AST_WHILE:{
+
+            int this_while = builtin_goto_counter++;
+            AST_NODE* condition = nd->children[0];
+            AST_NODE* body = nd->children[1];
+
+            std::string start_label = "BUILTIN_WHILE_START_" + std::to_string(this_while);
+            std::string end_label = "BUILTIN_WHILE_END_" + std::to_string(this_while);
+
+            comp.bytecode += ">" + start_label + "\n";
+            comp.bytecode += "SAFETY_LABEL\n";
+            
+            generate_bytecode(comp, condition);
+            comp.bytecode+="BLOCK_START\n";
+            comp.bytecode += "GOTOZERO_" + end_label + "\n";
+
+            generate_bytecode(comp, body);
+            comp.bytecode += "GOTO_" + start_label + "\n";
+              
+
+            comp.bytecode += ">" + end_label + "\n";
+            comp.bytecode += "SAFETY_LABEL\n";
+            
             return;
         }
 
