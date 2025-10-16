@@ -99,8 +99,16 @@ AST_NODE* parse_primary(AST& ast, int& index) {
                 while (index < ast.tokens.size() && ast.tokens[index].value != "end" && ast.tokens[index].value != "else") {
                     then_block->children.push_back(parse_comparison(ast, index));
                 }
+                
+                if(index==ast.tokens.size()&&ast.tokens[index].value!="end"&&ast.tokens[index].value!="else"){
+                    display_err("Expected 'end' or 'else' branch after if block");
+                    return nullptr;
+                }
 
                 node->children.push_back(then_block);
+            }else{
+                display_err("Expected 'do' after if condition");
+                return nullptr;
             }
 
             
@@ -110,13 +118,40 @@ AST_NODE* parse_primary(AST& ast, int& index) {
                 while (index < ast.tokens.size() && ast.tokens[index].value != "end") {
                     else_block->children.push_back(parse_comparison(ast, index));
                 }
+
+                if(index==ast.tokens.size()&&ast.tokens[index].value!="end"){
+                    display_err("Expected 'end' after 'else' branch block");
+                    return nullptr;
+                }
+
                 node->children.push_back(else_block);
             }
 
          
             if (index < ast.tokens.size() && ast.tokens[index].value == "end") index++;
-        }else {
-                    node = create_node(AST_NONE, "NONE");
+        }else if(tok.value=="while"){
+            node=create_node(AST_WHILE,"WHILE");
+            index++;
+            node->children.push_back(parse_comparison(ast,index));
+
+            if(index<ast.tokens.size() && ast.tokens[index].value=="do"){
+                index++;
+                AST_NODE* while_block = create_node(AST_BLOCK_START,"don't add");
+                while(index < ast.tokens.size() && ast.tokens[index].value != "end"){
+                    while_block->children.push_back(parse_comparison(ast,index));
+                }
+                if(index==ast.tokens.size()&&ast.tokens[index].value!="end"){
+                    display_err("Expected 'end' after while block");
+                    return nullptr;
+                }
+                node->children.push_back(while_block);
+            }else{
+                display_err("Expected 'do' after while condition");
+                return nullptr;
+            }
+
+        }else{
+            node = create_node(AST_NONE, "NONE");
             index++;
         }
     } else {
@@ -185,6 +220,7 @@ AST* build_ast(AST& ast) {
 std::string node_type_to_string(NODE_TYPE& type) {
     switch (type) {
         
+        
         case AST_TOP: return "TOP";
         case AST_UN_OP: return "UNARY_OP";
         case AST_BIN_OP: return "BINARY_OP";
@@ -198,11 +234,12 @@ std::string node_type_to_string(NODE_TYPE& type) {
         case AST_PROGRAM: return "PROGRAM";
         case AST_IF: return "IF";
         case AST_ELSE: return "ELSE";
-        case AST_NONE: return "NONE";
+        case AST_NONE: return "";
         case AST_GOTO_LABEL : return "GOTO_LABEL";
         case AST_BLOCK_END : return "BLOCK_END";
         case AST_BLOCK_START : return "BLOCK_START";
         case AST_GOTO : return "GOTO";
+        case AST_WHILE: return "WHILE";
         default: return "UNKNOWN";
     }
 }
