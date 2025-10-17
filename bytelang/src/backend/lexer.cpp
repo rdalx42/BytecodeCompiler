@@ -50,7 +50,11 @@ void doidentifier(LEXER& lex, int& index) {
 }
 
 void dolex(LEXER& lex) {
+
+
     int index = 0;
+    int current_scope_count=0;
+
     while (index < lex.content.size()) {
         char current = lex.content[index];
         if (current == ' '  || current=='\t' ) {
@@ -140,6 +144,7 @@ void dolex(LEXER& lex) {
                 
                 if(std::find(bytecode_keywords.begin(), bytecode_keywords.end(), (lex.tokens.back().value)) != bytecode_keywords.end()||(lex.tokens.back().value[0]=='>')||(lex.tokens.back().value.substr(0,4) == "GOTO")){
                     std::cout<<"Bytecode token found: "<<lex.tokens.back().value<<"\n";
+                     
                     bytecode_tok_cnt++;
                     if(lex.tokens.back().value == "PUSH"){
                         lex.tokens.back().type = BYTECODE_PUSH;
@@ -177,8 +182,10 @@ void dolex(LEXER& lex) {
                     else if(lex.tokens.back().value == "GTE"){
                         lex.tokens.back().type = BYTECODE_GTE;
                     }else if(lex.tokens.back().value[0]=='>'){
-                        std::cout<<"Label found: "<<lex.tokens.back().value.substr(1)<<"\n";
+
                         lex.goto_positions[lex.tokens.back().value.substr(1)]=bytecode_tok_cnt+1;
+                       // lex.goto_scope_count[lex.tokens.back().value.substr(1)]=current_scope_count;
+                        
                        // bytecode_tok_cnt++;
                         lex.tokens.back().type = BYTECODE_GOTO_LABEL;
                     }else if(lex.tokens.back().value.substr(0,4) == "GOTO"){
@@ -210,16 +217,23 @@ void dolex(LEXER& lex) {
                         }
                         
                     }else if(lex.tokens.back().value=="BLOCK_START"){
+                      //  current_scope_count++;
+                    //    std::cout<<"add: "<<current_scope_count<<"\n";
                         lex.tokens.back().type = BYTECODE_MAKE_BLOCK;
                     }else if(lex.tokens.back().value=="BLOCK_END"){
+                    //    current_scope_count--;
+                    //    std::cout<<"del "<<current_scope_count<<"\n";
                         lex.tokens.back().type = BYTECODE_DEL_BLOCK;
                     }else if(lex.tokens.back().value=="SAFETY_LABEL"){
                         lex.tokens.back().type = BYTECODE_SAFETY;
                     }
                 }
             }else{
+
                 if(std::find(keywords.begin(), keywords.end(), lex.tokens.back().value) != keywords.end()){
+                    
                     lex.tokens.back().type=KEYWORD;
+
                 }
             }
             
@@ -227,6 +241,18 @@ void dolex(LEXER& lex) {
         }
         display_err(std::string("Unknown character found: ") + current);
         index++;
+    }
+
+    if(lex.in_bytecode==true){
+        for(const auto& pos : lex.tokens){
+            if(pos.type == BYTECODE_MAKE_BLOCK){
+                current_scope_count++;
+            }else if(pos.type == BYTECODE_DEL_BLOCK){
+                current_scope_count--;
+            }else if(pos.type == BYTECODE_GOTO_LABEL){
+                lex.goto_scope_count[pos.value.substr(1)] = current_scope_count;
+            }
+        }
     }
 }
 
