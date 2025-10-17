@@ -24,8 +24,36 @@ USE O(1) LOOKUPS FOR VARIABLES
 
  */
 
+/*
+UTILS
+*/
+
+double fast_parse_double(const std::string& s) {
+    double res = 0;
+    int sign = 1;
+    size_t i = 0;
+    
+    while (i < s.size() && s[i] != '.') {
+        res = res * 10 + (s[i] - '0');
+        i++;
+    }
+
+    if (i < s.size() && s[i] == '.') {
+        i++;
+        double frac = 0.1;
+        while (i < s.size()) {
+            res += (s[i] - '0') * frac;
+            frac *= 0.1;
+            i++;
+        }
+    }
+
+    return res * sign;
+}
+
 void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
     
+  //  std::cout<<"MAKING BYTECODE\n";
     static int builtin_goto_counter = 0;
     
     if (!nd) return;
@@ -172,6 +200,8 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
         if (nd->type != AST_BIN_OP && nd->type != AST_VAR_ASSIGN && nd->type != AST_UN_OP)
             generate_bytecode(comp, child);
     }
+
+ //   std::cout<<"MADE BYTECODE\n";
 }
 
 
@@ -196,6 +226,7 @@ void compile_ast_to_bytecode(COMPILER& comp) {
 }
 
 void compile(COMPILER& comp) {
+    
     size_t i = 0;
     while (i < comp.lex.tokens.size()) {
         TOKEN& tok = comp.lex.tokens[i];
@@ -216,11 +247,11 @@ void compile(COMPILER& comp) {
                 if (i + 1 < comp.lex.tokens.size()) {
                     TOKEN& next = comp.lex.tokens[i + 1];
                     VALUE val;
-                    if (next.type == TOKEN_T::INT) val = VALUE(std::stoi(next.value));
-                    else if (next.type == TOKEN_T::FLOAT) val = VALUE(std::stod(next.value));
+                    if (next.type == TOKEN_T::INT) val = VALUE(fast_parse_double(next.value));
+                    else if (next.type == TOKEN_T::FLOAT) val = VALUE(fast_parse_double(next.value));
                     else if (next.type == TOKEN_T::IDENTIFIER) {
-                        if (comp.memory.exists(next.value)) val = comp.memory.get(next.value);
-                        else display_err("Variable '" + next.value + "' not defined");
+                        val = comp.memory.get(next.value);
+                       // else display_err("Variable '" + next.value + "' not defined");
                     } else display_err("Expected value after PUSH");
 
                     comp.memory.operation_stack.push_back(val);
