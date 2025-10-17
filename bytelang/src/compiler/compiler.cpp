@@ -17,6 +17,13 @@ COMPILER init(AST& ast, LEXER& lex) {
 }
 // generate_bytecode
 
+/*
+
+TODO 
+USE O(1) LOOKUPS FOR VARIABLES
+
+ */
+
 void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
     
     static int builtin_goto_counter = 0;
@@ -222,6 +229,7 @@ void compile(COMPILER& comp) {
                 break;
 
             case TOKEN_T::BYTECODE_DEL_BLOCK:{
+            //    std::cout<<"DEL\n";
                 if(comp.memory.current_stack_amount<=0){
                     display_err("Cannot delete block, block already stack empty");
                 }else if(comp.memory.current_stack_amount>0){
@@ -253,6 +261,7 @@ void compile(COMPILER& comp) {
             }
 
             case TOKEN_T::BYTECODE_MAKE_BLOCK:{
+               // std::cout<<"BLOCK MADE\n";
                 comp.memory.current_stack_amount++;
                 
                 i++;
@@ -327,6 +336,14 @@ void compile(COMPILER& comp) {
             //    std::cout<<"goto\n";
                 auto it = comp.lex.goto_positions.find(tok.value);
                 if (it != comp.lex.goto_positions.end()) {
+
+                    int target_depth = comp.lex.goto_scope_count[tok.value];
+                //    std::cout<<comp.memory.current_stack_amount<<"  "<<target_depth<<"\n";
+                    while (comp.memory.current_stack_amount > target_depth) { // delete scopes
+                        comp.memory.del_stack();
+                        comp.memory.current_stack_amount--;
+                    }
+
                     i = it->second+1;  // jump directly to label
                    
                     break;
