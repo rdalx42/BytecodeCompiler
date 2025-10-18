@@ -3,8 +3,10 @@
 #define LEXER_H
 
 #include <unordered_map>
+#include <optional>
 #include <vector>
 #include <string>
+
 
 extern const std::string digits ;
 extern const std::string characters;
@@ -51,18 +53,50 @@ enum TOKEN_T{
     BYTECODE_GOTO_IF_ZERO,
 };
 
-struct TOKEN{
-    std::string value; 
+struct TOKEN {
+    std::string value;
     TOKEN_T type;
+
+    // std::optional variables to help during runtime
+    std::optional<int>int_val;
+    std::optional<double>double_val;
+    std::optional<int>jump_pos;
+    std::optional<int>scope_level;
+    std::optional<int>var_id; // for STORE and LOAD 
+
+    std::optional<int>variable_scope_level; // for debugging mainly
+    std::optional<bool>is_new_val; // for STORE instruction
+};
+
+struct SCOPE_COUNT{
+    int scope_level=0;
+   // int start_pos=0;
+};
+
+struct PRE_CALC_STACK_VALUE{
+    int id=0;
+    std::vector<std::string>var_names;
+};
+
+struct PRE_CALC_VAR_DATA{
+    int id=0;
+    int scope_level=0;
 };
 
 struct LEXER{
+    
     bool in_bytecode=false;
     std::string content;
     size_t pos = 0;
     std::vector<TOKEN> tokens;
     
+    std::vector<PRE_CALC_STACK_VALUE>pre_calc_stack;
+
+    int declared_pre_calcs=0; 
+
+    std::unordered_map<std::string,PRE_CALC_VAR_DATA>declared_variables; // variable name to id pre-runtime
     std::unordered_map<std::string,int>goto_positions;
+    std::unordered_map<std::string,SCOPE_COUNT>goto_scope_count;
 
     LEXER(const std::string& c) : content(c), pos(0) {}
 };
