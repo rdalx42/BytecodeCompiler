@@ -1,85 +1,133 @@
+
+// TODO ADD HARDCODED IDS IN HERE
+
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#include <iostream>
 #include <string>
 #include <vector>
-#include <variant>
 #include <unordered_map>
+#include <cstdlib> // malloc/free
 #include "../runtime/err.h"
 
-struct VALUE {
-    using value_t = std::variant<int, double, std::string, std::vector<VALUE>>;
+#pragma GCC optimize("O3","unroll-loops")
 
-    value_t data;
+#define MAX_STACK_VALS 1024
+#define MAX_VALS 1024
+#define MAX_OP_STACK 101
+
+
+enum VAL_TYPE {
+    INT_VAL,
+    FLOAT_VAL,
+    STR_VAL,
+    VEC_VAL
+};
+
+struct VALUE {
+    VAL_TYPE type = INT_VAL;
+    union {
+        int int_val;
+        double float_val;
+    };
+    std::string* str_val = nullptr;
+    std::vector<VALUE>* vec_val = nullptr;
 
     VALUE() = default;
-    VALUE(int i) : data(i) {}
-    VALUE(double d) : data(d) {}
-    VALUE(const std::string& s) : data(s) {}
-    VALUE(const std::vector<VALUE>& v) : data(v) {}
+};
+
+struct vexa_stack {
+    VALUE* data;
+    size_t capacity;
+    size_t top;
+
+    void init(size_t cap) {
+        data = (VALUE*)malloc(sizeof(VALUE) * cap);
+        capacity = cap;
+        top = 0;
+    }
+
+    void destroy() {
+        free(data);
+        data = nullptr;
+        top = 0;
+        capacity = 0;
+    }
+
+    bool is_empty() const { return top == 0; }
+    size_t sz() const { return top; }
+
+    VALUE& get_back() { return data[top - 1]; }
+
+    void push(const VALUE& val) { data[top++] = val; }
+
+    VALUE& pop() { return data[--top]; }
+
+    VALUE& peek() { return get_back(); }
 };
 
 struct STACK_VALUE {
-    int id = 0;
-    std::string name = "";
+    union {
+        int id;
+        int var_id;
+    };
 };
 
+
 struct MEMORY {
+    int length_of_values = 0; // number of values currently used
     int current_stack_amount = 0;
-    std::vector<STACK_VALUE> stack_vals;
-    std::vector<VALUE> operation_stack;
 
-    std::unordered_map<std::string, int> id_for_value; 
-    std::vector<VALUE> values;                         
+    STACK_VALUE stack_vals[MAX_STACK_VALS];
+    size_t stack_vals_size = 0;
 
-    int get_or_create_id(const std::string& name) {
-        auto it = id_for_value.find(name);
-        if (it != id_for_value.end()) return it->second;
+    vexa_stack operation_stack;
+    VALUE values[MAX_VALS];                             
 
-        int id = (int)values.size();
-        id_for_value[name] = id;
-        values.emplace_back();
-
-        STACK_VALUE sv { current_stack_amount, name };
-        stack_vals.push_back(sv);
-        return id;
-    }
-
-    void set(const std::string& name, const VALUE& val) {
-        int id = get_or_create_id(name);
-        values[id] = val;
-    }
-
-    void delete_val(const std::string& name) {
-        auto it = id_for_value.find(name);
-        if (it != id_for_value.end()) {
-            int id = it->second;
-            values[id] = VALUE(); // clear value
-            id_for_value.erase(it);
-        } else {
-            display_err("Variable of name '" + name + "' not defined.");
+    void set(const TOKEN& tok,const VALUE& val) {
+        
+        
+        if(tok.var_id.has_value()==false||tok.var_id.value()==-1){
+            display_err("Invalid variable ID for setting value");
+            return;
         }
+
+        // put value on stack too
+        if(tok.is_new_val.has_value()==true && tok.is_new_val.value()==true){
+            stack_vals[stack_vals_size].id = current_stack_amount;
+            stack_vals[stack_vals_size].var_id = tok.var_id.value();
+            stack_vals_size++;
+            length_of_values++;
+        }
+        values[tok.var_id.value() - 1] = val;
+    }
+
+    void delete_val(const int& id) {
+        
+        values[id] = VALUE{}; // reset value
+       
     }
 
     void del_stack() {
-        while (!stack_vals.empty() && stack_vals.back().id == current_stack_amount) {
-            delete_val(stack_vals.back().name);
-            stack_vals.pop_back();
+        while (stack_vals_size > 0 && stack_vals[stack_vals_size - 1].id == current_stack_amount) {
+            
+            delete_val(stack_vals[stack_vals_size - 1].var_id);
+            length_of_values--;
+            --stack_vals_size;
         }
     }
 
-    VALUE get(const std::string& name) const {
-        auto it = id_for_value.find(name);
-        if (it != id_for_value.end()) {
-            return values[it->second];
-        }
-        display_err("Variable of name '" + name + "' not defined.");
-        return VALUE();
-    }
+    VALUE get(const TOKEN& tok) {
 
-    bool exists(const std::string& name) const {
-        return id_for_value.find(name) != id_for_value.end();
+        if(tok.var_id.has_value()==false||tok.var_id.value()==-1){
+           
+            display_err("Invalid variable for getting value of: " + tok.value);
+            return VALUE{};
+        }
+
+        int found_id = tok.var_id.value();
+        return values[found_id - 1];
     }
 };
-
 #endif
