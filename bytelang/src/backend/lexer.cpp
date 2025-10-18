@@ -28,11 +28,20 @@ void donum(LEXER& lex, int& index) {
         } else if (current == '.' && !dot_seen) {
             lex.tokens[token_index].value += current;
             lex.tokens[token_index].type = FLOAT;
+            
             dot_seen = true;
             index++;
         } else {
             break;
         }
+    }
+
+    if(dot_seen==false){ // integer
+        int int_value = std::stoi(lex.tokens[token_index].value);
+        lex.tokens[token_index].int_val = int_value; 
+    }else{ // float
+        double float_value = std::stod(lex.tokens[token_index].value);
+        lex.tokens[token_index].double_val = float_value;  
     }
 }
 
@@ -61,7 +70,11 @@ void dolex(LEXER& lex) {
             index++;
             continue;
         }if(current=='\n'){
-            lex.tokens.push_back({"newline",NEWLINE});
+
+            if(lex.in_bytecode==false){
+                lex.tokens.push_back({"newline",NEWLINE});
+            }
+
             index++;
             continue;
         }
@@ -143,7 +156,7 @@ void dolex(LEXER& lex) {
                 // special bytecode tokens
                 
                 if(std::find(bytecode_keywords.begin(), bytecode_keywords.end(), (lex.tokens.back().value)) != bytecode_keywords.end()||(lex.tokens.back().value[0]=='>')||(lex.tokens.back().value.substr(0,4) == "GOTO")){
-                    std::cout<<"Bytecode token found: "<<lex.tokens.back().value<<"\n";
+                 //   std::cout<<"Bytecode token found: "<<lex.tokens.back().value<<"\n";
                      
                     bytecode_tok_cnt++;
                     if(lex.tokens.back().value == "PUSH"){
@@ -243,24 +256,143 @@ void dolex(LEXER& lex) {
         index++;
     }
 
-    if(lex.in_bytecode==true){
-        for(const auto& pos : lex.tokens){
-            if(pos.type == BYTECODE_MAKE_BLOCK){
+    int current_start_block = 0;
+
+    if (lex.in_bytecode) {
+        int current_scope_count = 0;
+        int current_start_block = 0;
+
+        for (size_t i = 0; i < lex.tokens.size(); ++i) {
+            TOKEN& tok = lex.tokens[i];
+            if (tok.type == BYTECODE_MAKE_BLOCK) {
+                current_start_block = i;
                 current_scope_count++;
-            }else if(pos.type == BYTECODE_DEL_BLOCK){
+                lex.pre_calc_stack.push_back({0,{}});
+            } else if (tok.type == BYTECODE_DEL_BLOCK) {
+                
                 current_scope_count--;
-            }else if(pos.type == BYTECODE_GOTO_LABEL){
-                lex.goto_scope_count[pos.value.substr(1)] = current_scope_count;
+
+
+            } else if (tok.type == BYTECODE_GOTO_LABEL) {
+                std::string label = tok.value.substr(1);
+                lex.goto_scope_count[label].scope_level = current_scope_count;
+
             }
         }
+
+        for (size_t i = 0; i < lex.tokens.size(); ++i) {
+            TOKEN& tok = lex.tokens[i];
+
+            if (tok.type == BYTECODE_GOTO || tok.type == BYTECODE_GOTO_IF_ZERO) {
+                std::string label = tok.value;
+
+                auto it = lex.goto_positions.find(label);
+                if (it == lex.goto_positions.end()) {
+                    display_err("Label not found in goto map: " + label);
+                    return;
+                }
+
+                int label_index = it->second;
+                tok.jump_pos = label_index; // GOTO instruction points to label token
+                tok.scope_level = lex.goto_scope_count[label].scope_level;
+
+                std::cout << "Linked GOTO " << label
+                        << " (at token " << i << ") → label token " << label_index
+                        << " (scope " << tok.scope_level.value() << ")\n";
+            }
+        }
+        
+        // simulate scopes and variable declarations
+        current_scope_count = 0;
+
+        for (size_t i = 0; i < lex.tokens.size(); ++i) {
+            TOKEN& tok = lex.tokens[i];
+
+            if (tok.type == BYTECODE_MAKE_BLOCK) {
+                current_scope_count++;
+                lex.pre_calc_stack.push_back({0, {}}); 
+            } 
+            else if( tok.type == BYTECODE_DEL_BLOCK) {
+                if (!lex.pre_calc_stack.empty()) {
+                    for (auto& var_name : lex.pre_calc_stack.back().var_names) {
+                        if(lex.declared_variables[var_name].scope_level > 0) {
+                            lex.declared_variables.erase(var_name);
+                            lex.declared_pre_calcs--;
+                        }
+                    }
+                    lex.pre_calc_stack.pop_back();
+                }
+                current_scope_count--;
+            }
+
+            else if (tok.type == BYTECODE_STORE) {
+                if (i + 1 < lex.tokens.size()) {
+                    std::string var_name = lex.tokens[i + 1].value;
+
+                    if (lex.declared_variables.find(var_name) == lex.declared_variables.end()) {
+                        
+                        int var_id = lex.declared_pre_calcs + 1;
+                        lex.declared_variables[var_name] = {var_id, current_scope_count};
+                        lex.pre_calc_stack.back().var_names.push_back(var_name);
+                        tok.is_new_val=true;
+                        lex.declared_pre_calcs++; 
+                    }
+                    
+                    tok.var_id = lex.declared_variables[var_name].id;
+                    tok.variable_scope_level = lex.declared_variables[var_name].scope_level;
+                }
+            }else if(tok.type == BYTECODE_LOAD) {
+                if (i + 1 < lex.tokens.size()) {
+                    std::string var_name = lex.tokens[i + 1].value;
+
+                    if (lex.declared_variables.find(var_name) == lex.declared_variables.end()) {
+                        tok.var_id = -1; // default error value
+                        tok.variable_scope_level = lex.declared_variables[var_name].scope_level;
+                    } else {
+                        tok.var_id = lex.declared_variables[var_name].id;
+                        tok.variable_scope_level = lex.declared_variables[var_name].scope_level;
+                    }
+                }
+            }
+            else if (tok.type == BYTECODE_GOTO || tok.type == BYTECODE_GOTO_IF_ZERO) {
+                if (tok.scope_level.has_value()) {
+                    int target_scope = tok.scope_level.value();
+                    
+                    while (current_scope_count > target_scope) {
+                        if (!lex.pre_calc_stack.empty()) {
+                            for (auto& var_name : lex.pre_calc_stack.back().var_names) {
+                                lex.declared_variables.erase(var_name);
+                                lex.declared_pre_calcs--;
+                            }
+                            lex.pre_calc_stack.pop_back();
+                        }
+                        current_scope_count--;
+                    }
+                }
+            }
+        }
+
     }
+
 }
 
 void display_lex(LEXER& lex) {
     std::cout << "[";
     for (size_t i = 0; i < lex.tokens.size(); i++) {
+        
         std::cout << lex.tokens[i].value;
-        if (i + 1 != lex.tokens.size()) std::cout << ", ";
+        
+        if(lex.tokens[i].double_val.has_value()){
+            std::cout<<"(float: "<<lex.tokens[i].double_val.value()<<")";
+        }else if(lex.tokens[i].int_val.has_value()){
+            std::cout<<"(int: "<<lex.tokens[i].int_val.value()<<")";
+        }else if(lex.tokens[i].jump_pos.has_value()&&lex.tokens[i].scope_level.has_value()){
+            std::cout<<"(jump to: "<<lex.tokens[i].jump_pos.value()<<", at scope:"<<lex.tokens[i].scope_level.value()<<")";
+        }else if(lex.tokens[i].var_id.has_value()){
+            std::cout<<"(var id: "<<lex.tokens[i].var_id.value()<<", at scope:"<<lex.tokens[i].variable_scope_level.value()<<")";
+        }
+
+        if (i + 1 != lex.tokens.size()){std::cout << ", ";} 
     }
     std::cout << "]\n";
 
