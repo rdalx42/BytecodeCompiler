@@ -4,10 +4,28 @@
 #include "../headers/backend/ast.h"
 #include "../compiler/compiler.h"
 
+#include <ctime>
 #include <fstream>
 #include <iostream>
 
+size_t total_bytes_allocated = 0;
+
+void* operator new(size_t size) {
+    total_bytes_allocated += size;
+    return malloc(size);
+}
+
+void operator delete(void* ptr, size_t size) noexcept {
+    total_bytes_allocated -= size; 
+    free(ptr);
+}
+
 void doshell(SHELL& sh) {
+    
+    std::cout<<"\033[2J"; // clear screen
+    
+    std::cout<<"Compiling to bytecode...\n";
+
     LEXER lexer(sh.shell_content);
     dolex(lexer);
     std::cout << "\nTokens:\n";
@@ -30,16 +48,28 @@ void doshell(SHELL& sh) {
     dolex(lex2);
     display_lex(lex2);
     compiler.lex=lex2;
+    compiler.lex.tokens=lex2.tokens;
+
+    
     std::cout << "\nBytecode:\n" << compiler.bytecode << "\n";
 
+    time_t start_time = clock();
+    size_t total_bytes_allocated_before_execution = total_bytes_allocated;
+
     compile(compiler);
+
+    time_t end_time = clock();
+
+    std::cout<<"\nExecution finished in " << double(end_time - start_time) / CLOCKS_PER_SEC << " seconds.\n";
+    std::cout<<"Bytes allocated during execution: " << (total_bytes_allocated - total_bytes_allocated_before_execution) << " bytes.\n";
 }
 
 int main(void){
+    
     SHELL sh;
     sh.shell_content = "";
 
-    std::ifstream in("examples/main.byt");
+    std::ifstream in("examples/main.vexa");
     if (!in.is_open()) {
         std::cerr << "Failed to open input file\n";
         return 1;
