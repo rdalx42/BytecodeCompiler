@@ -2,58 +2,29 @@
 #include "compiler.h"
 #include <iostream>
 
+
 COMPILER init(AST& ast, LEXER& lex) {
     COMPILER comp(ast, lex);
-    comp.memory.stack_vals.clear();
-    comp.memory.stack_vals.reserve(100);
-    comp.memory.operation_stack.clear();
-    comp.memory.values.clear();
-    comp.memory.id_for_value.clear();
-    comp.memory.id_for_value.reserve(100);
-    comp.memory.values.reserve(100);
-    comp.memory.operation_stack.reserve(10);
+    //comp.memory.stack_vals.clear();
+    
+   // comp.memory.values.resize(MAX_VALS);
+   comp.memory.operation_stack.init(MAX_OP_STACK);
+   comp.lex.pre_calc_stack.resize(MAX_VALS);
+   comp.lex.pre_calc_stack.reserve(MAX_VALS);
+ //   comp.memory.operation_stack.resize(MAX_OP_STACK);
+   
     comp.bytecode.clear();
+    
+    
     return comp;
 }
 // generate_bytecode
 
 /*
-
-TODO 
-USE O(1) LOOKUPS FOR VARIABLES
-
- */
-
-/*
-UTILS
+Generate bytecode && precompute builtin control flow structures
 */
-
-double fast_parse_double(const std::string& s) {
-    double res = 0;
-    int sign = 1;
-    size_t i = 0;
-    
-    while (i < s.size() && s[i] != '.') {
-        res = res * 10 + (s[i] - '0');
-        i++;
-    }
-
-    if (i < s.size() && s[i] == '.') {
-        i++;
-        double frac = 0.1;
-        while (i < s.size()) {
-            res += (s[i] - '0') * frac;
-            frac *= 0.1;
-            i++;
-        }
-    }
-
-    return res * sign;
-}
-
 void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
     
-  //  std::cout<<"MAKING BYTECODE\n";
     static int builtin_goto_counter = 0;
     
     if (!nd) return;
@@ -151,7 +122,6 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
             return;
         }
 
-
         case AST_TOP:
             comp.bytecode += "TOP\n";
             break;
@@ -164,8 +134,11 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
             return;
 
         case AST_VAR_ASSIGN:
+            
+
             if (nd->children.size() == 2) {
                 generate_bytecode(comp, nd->children[1]);
+                
                 comp.bytecode += "STORE " + nd->children[0]->value + "\n";
             }
             return;
@@ -197,28 +170,43 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
     }
 
     for (AST_NODE* child : nd->children) {
-        if (nd->type != AST_BIN_OP && nd->type != AST_VAR_ASSIGN && nd->type != AST_UN_OP)
+        if (nd->type != AST_BIN_OP && nd->type != AST_VAR_ASSIGN && nd->type != AST_UN_OP){
             generate_bytecode(comp, child);
+        }
     }
 
- //   std::cout<<"MADE BYTECODE\n";
+    
 }
 
-
 void print_value(const VALUE& val) {
-    std::visit([](auto&& arg){
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, std::vector<VALUE>>) {
-            std::cout << "[";
-            for (size_t i = 0; i < arg.size(); ++i) {
-                print_value(arg[i]);
-                if (i + 1 < arg.size()) std::cout << ", ";
+    
+    switch (val.type) {
+        case INT_VAL:
+            std::cout << val.int_val;
+            break;
+        case FLOAT_VAL:
+            std::cout << val.float_val;
+            break;
+        case STR_VAL:
+            if (val.str_val) std::cout << *val.str_val;
+            else std::cout << "null";
+            break;
+        case VEC_VAL:
+            if (val.vec_val) {
+                std::cout << "[";
+                for (size_t i = 0; i < val.vec_val->size(); ++i) {
+                    print_value((*val.vec_val)[i]);
+                    if (i + 1 < val.vec_val->size()) std::cout << ", ";
+                }
+                std::cout << "]";
+            } else {
+                std::cout << "[]";
             }
-            std::cout << "]";
-        } else {
-            std::cout << arg;
-        }
-    }, val.data);
+            break;
+        default:
+            std::cout << "unknown";
+            break;
+    }
 }
 
 void compile_ast_to_bytecode(COMPILER& comp) {
@@ -226,38 +214,65 @@ void compile_ast_to_bytecode(COMPILER& comp) {
 }
 
 void compile(COMPILER& comp) {
-    
     size_t i = 0;
+   // std::cout<<"ALL TOKENS:\n";
+    //display_lex(comp.lex);
     while (i < comp.lex.tokens.size()) {
         TOKEN& tok = comp.lex.tokens[i];
        // if(tok.value!="newline"){
        //     std::cout<<tok.value<<"\n";}
+
         switch (tok.type) {
             
             case TOKEN_T::BYTECODE_TOP:
                 std::cout << "Stack top: ";
-                if (!comp.memory.operation_stack.empty())
-                    print_value(comp.memory.operation_stack.back());
+                if (!comp.memory.operation_stack.is_empty()==true){
+                    print_value(comp.memory.operation_stack.get_back());
+                }
                 std::cout << "\n";
                 i++;
                 break;
 
-            case TOKEN_T::BYTECODE_PUSH:
-                
-                if (i + 1 < comp.lex.tokens.size()) {
-                    TOKEN& next = comp.lex.tokens[i + 1];
-                    VALUE val;
-                    if (next.type == TOKEN_T::INT) val = VALUE(fast_parse_double(next.value));
-                    else if (next.type == TOKEN_T::FLOAT) val = VALUE(fast_parse_double(next.value));
-                    else if (next.type == TOKEN_T::IDENTIFIER) {
-                        val = comp.memory.get(next.value);
-                       // else display_err("Variable '" + next.value + "' not defined");
-                    } else display_err("Expected value after PUSH");
+            case TOKEN_T::BYTECODE_PUSH: {
+                if (i + 1 >= comp.lex.tokens.size()) {
+                    display_err("Expected value after PUSH");
+                }
 
-                    comp.memory.operation_stack.push_back(val);
-                    i += 2;
-                } else display_err("Expected value after PUSH");
+                TOKEN& next = comp.lex.tokens[i + 1];
+                VALUE val;
+
+                if (next.type == TOKEN_T::INT) {
+                    val.type = INT_VAL;
+                    
+                    if(next.int_val.has_value()){
+                        val.int_val =*next.int_val;
+                    }else{
+                        display_err("Invalid integer value for PUSH");
+                        return;
+                    }
+                } else if (next.type == TOKEN_T::FLOAT) {
+                    if(next.double_val.has_value()){
+                        val.type = FLOAT_VAL;
+                        val.float_val = *next.double_val;
+                    }else{
+                        display_err("Invalid float value for PUSH");
+                        return;
+                    }
+                } else if (next.type == TOKEN_T::IDENTIFIER) {
+                    //if (comp.memory.exists(next.value)) {
+                        val = comp.memory.get(tok);
+                   // } else {
+                    //    display_err("Variable '" + next.value + "' not defined");
+                  //  }
+                } else {
+                    display_err("Expected value after PUSH");
+                }
+
+                comp.memory.operation_stack.push(val);
+                i += 2;
                 break;
+            }
+
 
             case TOKEN_T::BYTECODE_DEL_BLOCK:{
             //    std::cout<<"DEL\n";
@@ -270,26 +285,6 @@ void compile(COMPILER& comp) {
                 break;
             }
 
-            case TOKEN_T::BYTECODE_NEG:{
-                
-                if(comp.memory.operation_stack.empty()){
-                    display_err("Stack underflow on NEGATE operation");
-                }
-
-                VALUE val = comp.memory.operation_stack.back();
-                comp.memory.operation_stack.pop_back();
-                std::visit([&](auto&& arg){
-                    using T = std::decay_t<decltype(arg)>;
-                    if constexpr(std::is_same_v<T, int>) {
-                        comp.memory.operation_stack.push_back(VALUE(-arg));
-                    } else if constexpr(std::is_same_v<T, double>) {
-                        comp.memory.operation_stack.push_back(VALUE(-arg));
-                    } else {
-                        display_err("Invalid type for NEGATE operation");
-                        return;
-                    }
-                }, val.data);
-            }
 
             case TOKEN_T::BYTECODE_MAKE_BLOCK:{
                // std::cout<<"BLOCK MADE\n";
@@ -300,33 +295,31 @@ void compile(COMPILER& comp) {
             }// problem with got
 
             case TOKEN_T::BYTECODE_GOTO_IF_ZERO: {
-                if (comp.memory.operation_stack.empty()) {
+                if (comp.memory.operation_stack.is_empty()) {
                     display_err("Stack underflow on GOTOZERO");
                 }
-                VALUE val = comp.memory.operation_stack.back();
+                VALUE val = comp.memory.operation_stack.get_back();
              //   std::cout<<"popping in gotoifzero: ";
                 //print_value(comp.memory.operation_stack.back());
               //  std::cout<<'\n';
-                comp.memory.operation_stack.pop_back();
+                comp.memory.operation_stack.pop();
                // print_value(val);
                 
                 bool is_zero = false;
-                std::visit([&](auto&& arg){
-                    using T = std::decay_t<decltype(arg)>;
-                    if constexpr(std::is_same_v<T, int> || std::is_same_v<T, double>) {
-                        is_zero = (arg == 0);
-                    } else {
-                        display_err("Invalid type for GOTOZERO");
-                    }
-                }, val.data);
+
+                if (val.type == INT_VAL) {
+                    is_zero = (val.int_val == 0);
+                } else if (val.type == FLOAT_VAL) {
+                    is_zero = (val.float_val == 0.0);
+                } else {
+                    display_err("Invalid type for GOTOZERO");
+                }
+
 
                 if (is_zero) {
-                    auto it = comp.lex.goto_positions.find(tok.value);
-                    if (it != comp.lex.goto_positions.end()) {
-                        i = it->second;
-                    } else {
-                        display_err("Label '" + tok.value + "' not found for GOTOZERO");
-                    }
+                    int pos = *tok.jump_pos;
+                    i=pos; // has already been validated to exist
+                    
                 } else {
                     i++;
                 }
@@ -336,52 +329,55 @@ void compile(COMPILER& comp) {
 
             case TOKEN_T::BYTECODE_STORE:
                 if (i + 1 < comp.lex.tokens.size()) {
-                    std::string var_name = comp.lex.tokens[i + 1].value;
-                    if (!comp.memory.operation_stack.empty()) {
-                        VALUE val = comp.memory.operation_stack.back();
+                   // std::string var_name = comp.lex.tokens[i + 1].value;
+                    if (!comp.memory.operation_stack.is_empty()) {
+                        VALUE val = comp.memory.operation_stack.get_back();
                      //   std::cout<<"popping back on store:";
                      //   print_value(comp.memory.operation_stack.back());
                      //   std::cout<<"\n";
-                        comp.memory.operation_stack.pop_back();
-                        comp.memory.set(var_name, val);
+                        comp.memory.operation_stack.pop();
+                     //   std::cout<<"storing: "<<var_name<<" to: \n";
+                     //   print_value(val);
+                       // std::cout<<"set to: "<<comp.lex.tokens[i + 1].value<<"\n";
+                        comp.memory.set(comp.lex.tokens[i], val);
                     } else display_err("Stack underflow on STORE");
                     i += 2;
                     
                 } else display_err("STORE missing variable name");
                 break;
 
-            case TOKEN_T::BYTECODE_LOAD:
-                if (i + 1 < comp.lex.tokens.size()) {
-                    std::string var_name = comp.lex.tokens[i + 1].value;
-                    if (comp.memory.exists(var_name)){
-                        comp.memory.operation_stack.push_back(comp.memory.get(var_name));
+            case TOKEN_T::BYTECODE_LOAD:{
+                //if (i + 1 < comp.lex.tokens.size()) {
+                   // std::string var_name = comp.lex.tokens[i + 1].value;
+                    //if (comp.memory.exists(var_name)){
+                        comp.memory.operation_stack.push(comp.memory.get(comp.lex.tokens[i]));
                      //   print_value(comp.memory.get(var_name));  
                         
-                    }
-                    else {display_err("Variable '" + var_name + "' not defined");}
+                  //  }
+                  //  else {display_err("Variable '" + var_name + "' not defined");}
                     i += 2;
-                } else display_err("LOAD missing variable name");
+               // } else display_err("LOAD missing variable name");
                 break;
+            }
 
             case TOKEN_T::BYTECODE_GOTO: {
             //    std::cout<<"goto\n";
-                auto it = comp.lex.goto_positions.find(tok.value);
-                if (it != comp.lex.goto_positions.end()) {
-
-                    int target_depth = comp.lex.goto_scope_count[tok.value];
-                //    std::cout<<comp.memory.current_stack_amount<<"  "<<target_depth<<"\n";
+                
+                    int pos = *tok.jump_pos; //
+                    int target_depth = *tok.scope_level;
+                   // std::cout<<comp.memory.current_stack_amount<<"  "<<target_depth<<"\n";
                     while (comp.memory.current_stack_amount > target_depth) { // delete scopes
                         comp.memory.del_stack();
                         comp.memory.current_stack_amount--;
                     }
 
-                    i = it->second+1;  // jump directly to label
+                    i = pos+1;  // jump directly to label
                    
                     break;
-                } else display_err("Label '" + tok.value + "' not found");
+                
                 i++;
                 break;
-            }
+            }   
 
             case TOKEN_T::BYTECODE_SAFETY:
                 i++;
@@ -396,35 +392,50 @@ void compile(COMPILER& comp) {
             case TOKEN_T::BYTECODE_MUL:
             case TOKEN_T::BYTECODE_DIV:
                 
-                
-                
-                if (comp.memory.operation_stack.size() < 2) {
+                if (comp.memory.operation_stack.sz() < 2) {
                     
-                    print_value(comp.memory.operation_stack.back());
-                    display_err("Stack underflow on +,-,*,/ operation, expected two elements on stack got: "+std::to_string(comp.memory.operation_stack.size()));
+                    print_value(comp.memory.operation_stack.get_back());
+                    display_err("Stack underflow on +,-,*,/ operation, expected two elements on stack got: "+std::to_string(comp.memory.operation_stack.sz()));
                     i++;
                     break;
                 }
                 {
-                    VALUE b = comp.memory.operation_stack.back(); comp.memory.operation_stack.pop_back();
-                    VALUE a = comp.memory.operation_stack.back(); comp.memory.operation_stack.pop_back();
+                    VALUE b = comp.memory.operation_stack.get_back(); comp.memory.operation_stack.pop();
+                    VALUE a = comp.memory.operation_stack.get_back(); comp.memory.operation_stack.pop();
 
-                    std::visit([&](auto&& arg_a, auto&& arg_b) {
-                        using TA = std::decay_t<decltype(arg_a)>;
-                        using TB = std::decay_t<decltype(arg_b)>;
-                        if constexpr ((std::is_same_v<TA,int> || std::is_same_v<TA,double>) &&
-                                      (std::is_same_v<TB,int> || std::is_same_v<TB,double>)) {
-                            double result = 0;
-                            if (tok.type == TOKEN_T::BYTECODE_ADD) result = arg_a + arg_b;
-                            else if (tok.type == TOKEN_T::BYTECODE_SUB) result = arg_a - arg_b;
-                            else if (tok.type == TOKEN_T::BYTECODE_MUL) result = arg_a * arg_b;
-                            else if (tok.type == TOKEN_T::BYTECODE_DIV) {
-                                if (arg_b == 0) display_err("Division by zero");
-                                result = arg_a / arg_b;
-                            }
-                            comp.memory.operation_stack.push_back(VALUE(result));
-                        } else display_err("Type mismatch in arithmetic operation");
-                    }, a.data, b.data);
+                    double result = 0;
+
+                    if ((a.type == INT_VAL || a.type == FLOAT_VAL) &&
+                        (b.type == INT_VAL || b.type == FLOAT_VAL)) {
+                        
+                        double val_a = (a.type == INT_VAL) ? a.int_val : a.float_val;
+                        double val_b = (b.type == INT_VAL) ? b.int_val : b.float_val;
+
+                        switch(tok.type) {
+                            case TOKEN_T::BYTECODE_ADD: result = val_a + val_b; break;
+                            case TOKEN_T::BYTECODE_SUB: result = val_a - val_b; break;
+                            case TOKEN_T::BYTECODE_MUL: result = val_a * val_b; break;
+                            case TOKEN_T::BYTECODE_DIV:
+                                if (val_b == 0) display_err("Division by zero");
+                                result = val_a / val_b;
+                                break;
+                            default: break;
+                        }
+
+                        VALUE res_val;
+                        if (a.type == FLOAT_VAL || b.type == FLOAT_VAL) {
+                            res_val.type = FLOAT_VAL;
+                            res_val.float_val = result;
+                        } else {
+                            res_val.type = INT_VAL;
+                            res_val.int_val = (int)result;
+                        }
+
+                        comp.memory.operation_stack.push(res_val);
+
+                    } else {
+                        display_err("Type mismatch in arithmetic operation");
+                    }
 
                     i++;
                 }
@@ -437,84 +448,70 @@ void compile(COMPILER& comp) {
             case TOKEN_T::BYTECODE_LT:
             case TOKEN_T::BYTECODE_GT:
             {
-                auto do_comparison = [&](TOKEN_T tok_type) {
-                    if (comp.memory.operation_stack.size() < 2) {
-                        print_value(comp.memory.operation_stack.back());    
-                        display_err("Stack underflow on comparison operation");
-                        return;
+                VALUE b = comp.memory.operation_stack.get_back(); comp.memory.operation_stack.pop();
+                VALUE a = comp.memory.operation_stack.get_back(); comp.memory.operation_stack.pop();
+
+                bool result = false;
+
+                if ((a.type == INT_VAL || a.type == FLOAT_VAL) && (b.type == INT_VAL || b.type == FLOAT_VAL)) {
+                    double val_a = (a.type == INT_VAL) ? a.int_val : a.float_val;
+                    double val_b = (b.type == INT_VAL) ? b.int_val : b.float_val;
+
+                    switch(tok.type) {
+                        case TOKEN_T::BYTECODE_EQ:    result = val_a == val_b; break;
+                        case TOKEN_T::BYTECODE_NOTEQ: result = val_a != val_b; break;
+                        case TOKEN_T::BYTECODE_GT:    result = val_a >  val_b; break;
+                        case TOKEN_T::BYTECODE_GTE:   result = val_a >= val_b; break;
+                        case TOKEN_T::BYTECODE_LT:    result = val_a <  val_b; break;
+                        case TOKEN_T::BYTECODE_LTE:   result = val_a <= val_b; break;
+                        default: break;
                     }
+                }
+                // String comparison
+                else if (a.type == STR_VAL && b.type == STR_VAL) {
+                    const std::string& val_a = *(a.str_val);
+                    const std::string& val_b = *(b.str_val);
 
-                    VALUE b = comp.memory.operation_stack.back(); comp.memory.operation_stack.pop_back();
-                    VALUE a = comp.memory.operation_stack.back(); comp.memory.operation_stack.pop_back();
+                    switch(tok.type) {
+                        case TOKEN_T::BYTECODE_EQ:    result = val_a == val_b; break;
+                        case TOKEN_T::BYTECODE_NOTEQ: result = val_a != val_b; break;
+                        case TOKEN_T::BYTECODE_GT:    result = val_a >  val_b; break;
+                        case TOKEN_T::BYTECODE_GTE:   result = val_a >= val_b; break;
+                        case TOKEN_T::BYTECODE_LT:    result = val_a <  val_b; break;
+                        case TOKEN_T::BYTECODE_LTE:   result = val_a <= val_b; break;
+                        default: break;
+                    }
+                } 
+                else {
+                    display_err("Type mismatch in comparison operation");
+                }
 
-                    
-
-                    bool result = false;
-
-                    std::visit([&](auto&& arg_a, auto&& arg_b) {
-                        using TA = std::decay_t<decltype(arg_a)>;
-                        using TB = std::decay_t<decltype(arg_b)>;
-
-                        // Numeric comparison
-                        if constexpr ((std::is_same_v<TA,int> || std::is_same_v<TA,double>) &&
-                                    (std::is_same_v<TB,int> || std::is_same_v<TB,double>)) {
-                            double val_a = static_cast<double>(arg_a);
-                            double val_b = static_cast<double>(arg_b);
-
-                         //   std::cout<<"\ncomp: "<<val_a<<" "<<val_b<<"\n";
-
-                            switch(tok_type) {
-                                case TOKEN_T::BYTECODE_EQ:      result = val_a == val_b; break;
-                                case TOKEN_T::BYTECODE_NOTEQ:   result = val_a != val_b; break;
-                                case TOKEN_T::BYTECODE_GT:      result = val_a >  val_b; break;
-                                case TOKEN_T::BYTECODE_GTE:     result = val_a >= val_b; break;
-                                case TOKEN_T::BYTECODE_LT:      result = val_a <  val_b; break;
-                                case TOKEN_T::BYTECODE_LTE:     result = val_a <= val_b; break;
-                                default: break;
-                            }
-                        }
-                        // String comparison
-                        else if constexpr (std::is_same_v<TA,std::string> && std::is_same_v<TB,std::string>) {
-                            switch(tok_type) {
-                                case TOKEN_T::BYTECODE_EQ:      result = arg_a == arg_b; break;
-                                case TOKEN_T::BYTECODE_NOTEQ:   result = arg_a != arg_b; break;
-                                case TOKEN_T::BYTECODE_GT:      result = arg_a >  arg_b; break;
-                                case TOKEN_T::BYTECODE_GTE:     result = arg_a >= arg_b; break;
-                                case TOKEN_T::BYTECODE_LT:      result = arg_a <  arg_b; break;
-                                case TOKEN_T::BYTECODE_LTE:     result = arg_a <= arg_b; break;
-                                default: break;
-                            }
-                        }
-                        else {
-                            display_err("Type mismatch in comparison operation");
-                        }
-                    }, a.data, b.data);
-
-                    comp.memory.operation_stack.push_back(VALUE(result ? 1 : 0));
-                };
-
-                do_comparison(tok.type); 
+                VALUE res_val;
+                res_val.type = INT_VAL; // comparisons return 0 or 1
+                res_val.int_val = result ? 1 : 0;
+                comp.memory.operation_stack.push(res_val);
                 i++;
+
                 break;
             }
 
 
             case TOKEN_T::BYTECODE_POP:
-                if (!comp.memory.operation_stack.empty())
-                    comp.memory.operation_stack.pop_back();
+                if (!comp.memory.operation_stack.is_empty())
+                    comp.memory.operation_stack.pop();
                 else display_err("Stack underflow on POP");
                 i++;
                 break;
 
             case TOKEN_T::BYTECODE_POP_ALL:
-                comp.memory.operation_stack.clear();
+                comp.memory.operation_stack.destroy();
                 i++;
                 break;
             case TOKEN_T::BYTECODE_CLEANUP:
-                comp.memory.stack_vals.clear();
-                comp.memory.operation_stack.clear();
-                comp.memory.values.clear();
-                comp.memory.id_for_value.clear();
+              //  comp.memory.stack_vals.clear();
+                comp.memory.operation_stack.destroy();
+               // comp.memory.values.clear();
+               // comp.memory.id_for_value.clear();
                 i++;
                 break;
 
