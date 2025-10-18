@@ -1,10 +1,13 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
+#pragma GCC optimize("O3","unroll-loops")
+
 #include "../headers/backend/ast.h"
 #include "../headers/backend/lexer.h"
 #include "../headers/runtime/memory.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
