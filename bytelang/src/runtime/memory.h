@@ -44,10 +44,21 @@ struct ARR_COMPONENT {
         return arr[index];
     }
 
+    void print_arr() const {
+        
+        std::cout<<"[";
+        
+        for(int i = 0 ; i < size; i++){
+            std::cout<<arr[i];
+            if(i+1<size){std::cout<<",";}
+        }std::cout<<"]";
+    }
+
     void clear_arr() {
         
         size = 0;
     }
+
 };
 
 
@@ -64,7 +75,11 @@ struct VALUE {
         type=INT_VAL;
         str_component.reset();
         int_val=0;
-        arr_val->clear_arr();
+        
+        if(arr_val){
+            arr_val->clear_arr();
+        }
+
         float_val=0.0;
     }
 
