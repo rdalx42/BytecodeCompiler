@@ -5,7 +5,6 @@
 <br>
 
 ```pascal
-
 // example of capabilities
 
 do // scopes
@@ -16,16 +15,24 @@ end
 
 // variables
 x = 10 
-exited=0
+exited = 0
+
+// string variables
+greeting = "hi "
+name = "idk"
+message = greeting + ", " + name  // string concatenation
+message
+top  // push result of string concatenation to stack
+
 
 // while loop
 while x < 100 do 
-    x=x+1
+    x = x + 1
     x // this just sets the top value of the stack
-    // we access it via 'top'
+    // we access it via top
 
     if x == 50 do  // if statements 
-        exited=1
+        exited = 1
         goto ::loop_break  // goto statements
     end
     top
@@ -33,22 +40,25 @@ end
 
 ::loop_break
 
-if exited==1 do 
-    1 
+if exited == 1 do 
+    "exited early"
     top
 else // else statement
     5
     top // currently this is how we print stuff in a stack based machine
 end
 
-// currently there is no unary operations will add not(), negate() builtins later on
- 
+// string manipulation
+welcome_msg = "Welcome "
+user = "Alice"
+welcome_msg = welcome_msg + user
+welcome_msg
+top
 ```
 
 # Bytecode
 
 ```
-
 //PROGRAM START
 BLOCK_START
 PUSH 5
@@ -58,6 +68,18 @@ PUSH 10
 STORE x
 PUSH 0
 STORE exited
+PUSH "Hello"
+STORE greeting
+PUSH "World"
+STORE name
+LOAD greeting
+PUSH ", "
+ADD
+LOAD name
+ADD
+STORE message
+LOAD message
+TOP
 >BUILTIN_WHILE_START_0
 SAFETY_LABEL
 LOAD x
@@ -93,7 +115,7 @@ PUSH 1
 EQ
 GOTOZERO_BUILTIN_IF_ELSE_2
 BLOCK_START
-PUSH 1
+PUSH "Exited early!"
 TOP
 BLOCK_END
 GOTO_BUILTIN_IF_END_2
@@ -105,14 +127,31 @@ TOP
 BLOCK_END
 >BUILTIN_IF_END_2
 SAFETY_LABEL
+PUSH "Welcome "
+STORE welcome_msg
+PUSH "Alice"
+STORE user
+LOAD welcome_msg
+LOAD user
+ADD
+STORE welcome_msg
+LOAD welcome_msg
+TOP
 CLEANUP
+...
+
 Stack top: 5
+Stack top: Hello, World
 Stack top: 11
 Stack top: 12
 Stack top: 13
-...
 
-Stack top: 1
+....
+
+Stack top: exited early
+Stack top: Welcome Alice
+
+Execution finished in 0.003 seconds.
 ```
 
 
