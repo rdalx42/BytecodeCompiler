@@ -153,16 +153,69 @@ AST_NODE* parse_primary(AST& ast, int& index) {
                 return nullptr;
             }
 
-        }else{
+        }else if(tok.value=="for"){
+            node=create_node(AST_FOR,"FOR");
+            index++;
+
+            if(index < ast.tokens.size() && ast.tokens[index].type == IDENTIFIER){
+                AST_NODE* loop_var_node = create_node(AST_VAR_ACCESS, ast.tokens[index].value);
+                node->children.push_back(loop_var_node);
+                index++;
+            } else {
+                display_err("Expected loop variable after 'for' keyword");
+                return nullptr;
+            }
+
+            AST_NODE* start_node = nullptr;
+            if(index < ast.tokens.size() && ast.tokens[index].value == "="){
+                index++; // skip '='
+                start_node = parse_comparison(ast, index);
+                node->children.push_back(start_node);
+            } else {
+            
+                start_node = create_node(AST_INT, "0");
+                node->children.push_back(start_node);
+            }
+            if(index < ast.tokens.size() && ast.tokens[index].type == COMMA){
+                index++;
+            } else {
+                display_err("Expected comma after for loop start value");
+                return nullptr;
+            }
+            if(index >= ast.tokens.size()){
+                display_err("Expected end value for for loop");
+                return nullptr;
+            }
+            AST_NODE* end_node = parse_comparison(ast, index);
+            node->children.push_back(end_node);
+
+            if(index < ast.tokens.size() && ast.tokens[index].value == "do"){
+                index++;
+            } else {
+                display_err("Expected 'do' in for loop");
+                return nullptr;
+            }
+
+            AST_NODE* block_node = create_node(AST_BLOCK_START, "don't add");
+            while(index < ast.tokens.size() && ast.tokens[index].value != "end"){
+                block_node->children.push_back(parse_comparison(ast, index));
+            }
+
+            if(index == ast.tokens.size() || ast.tokens[index].value != "end"){
+                display_err("Expected 'end' after for block");
+                return nullptr;
+            }
+            index++; // skip 'end'
+
+            node->children.push_back(block_node);
+        }
+
+        } else {
             node = create_node(AST_NONE, "NONE");
             index++;
         }
-    } else {
-        node = create_node(AST_NONE, "NONE");
-        index++;
+        return node;
     }
-    return node;
-}
 
 AST_NODE* parse_factor(AST& ast, int& index) {
     if (index < ast.tokens.size() && ast.tokens[index].value == "-") {
@@ -237,6 +290,7 @@ std::string node_type_to_string(NODE_TYPE& type) {
         case AST_VAR_ACCESS: return "VAR_ACCESS";
         case AST_PROGRAM: return "PROGRAM";
         case AST_IF: return "IF";
+        case AST_FOR: return "FOR";
         case AST_ELSE: return "ELSE";
         case AST_NONE: return "";
         case AST_GOTO_LABEL : return "GOTO_LABEL";
@@ -283,7 +337,7 @@ fun main() do
     return something 
 end
 
-for i to 10 do 
+for i , 10 do 
 
 end 
 
