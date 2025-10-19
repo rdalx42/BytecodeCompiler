@@ -26,6 +26,7 @@ enum TOKEN_T{
     IDENTIFIER,
     NEWLINE,
     GOTO_LABEL,
+    COMMA,
 
     // bytecode
     BYTECODE_GOTO_LABEL,
