@@ -1,5 +1,4 @@
 
-// TODO ADD HARDCODED IDS IN HERE
 
 #ifndef MEMORY_H
 #define MEMORY_H
