@@ -60,7 +60,7 @@ for i = 0, 5 do
 end
 
 
-for i = 0, 2 do
+for i , 2 do // < -- by default i will be zero if nothing is declared
     for j = 0, 2 do
         x = i * 10 + j // nested for loopa
         x
