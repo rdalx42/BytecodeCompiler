@@ -1,6 +1,6 @@
 # BytecodeCompiler
 
-<h4> A <i>small</i> and <i>compact</i>, extremly <i>memory lightweight</i> on runtime and quite <i>fast</i> programming language </h4>
+<h4> A <i>small</i> and <i>compact</i>, extremly <i>memory lightweight</i> on runtime and quite <i>fast</i> home-made programming language </h4>
 
 <br>
 
