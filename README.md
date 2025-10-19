@@ -68,9 +68,9 @@ PUSH 10
 STORE x
 PUSH 0
 STORE exited
-PUSH "Hello"
+PUSH "hi"
 STORE greeting
-PUSH "World"
+PUSH "idk"
 STORE name
 LOAD greeting
 PUSH ", "
@@ -115,7 +115,7 @@ PUSH 1
 EQ
 GOTOZERO_BUILTIN_IF_ELSE_2
 BLOCK_START
-PUSH "Exited early!"
+PUSH "exited early"
 TOP
 BLOCK_END
 GOTO_BUILTIN_IF_END_2
@@ -129,7 +129,7 @@ BLOCK_END
 SAFETY_LABEL
 PUSH "Welcome "
 STORE welcome_msg
-PUSH "Alice"
+PUSH "idkwho"
 STORE user
 LOAD welcome_msg
 LOAD user
@@ -141,7 +141,7 @@ CLEANUP
 ...
 
 Stack top: 5
-Stack top: Hello, World
+Stack top: hi, idk
 Stack top: 11
 Stack top: 12
 Stack top: 13
@@ -149,7 +149,7 @@ Stack top: 13
 ....
 
 Stack top: exited early
-Stack top: Welcome Alice
+Stack top: Welcome idkwho
 
 Execution finished in 0.003 seconds.
 ```
