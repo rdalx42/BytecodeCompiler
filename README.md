@@ -19,8 +19,8 @@ exited = 0
 
 // string variables
 greeting = "hi "
-name = "idk"
-message = greeting + ", " + name  // string concatenation
+username = "idk"
+message = greeting + ", " + username  // string concatenation
 message
 top  // push result of string concatenation to stack
 
@@ -50,7 +50,7 @@ end
 
 // string manipulation
 welcome_msg = "Welcome "
-user = "Alice"
+user = "idkwho"
 welcome_msg = welcome_msg + user
 welcome_msg
 top
