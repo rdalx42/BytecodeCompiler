@@ -168,10 +168,11 @@ struct MEMORY {
         }
     }
 
-    inline VALUE get(const TOKEN& tok) {
+    inline const VALUE& get(const TOKEN& tok) const { // pass by reference
         if (tok.var_id.value() == -1) {
-            display_err("Invalid variable for getting value of: " + tok.value);
-            return VALUE{};
+            display_err("Invalid variable");
+            static VALUE dummy{};
+            return dummy; // works
         }
         return values[tok.var_id.value() - 1];
     }
