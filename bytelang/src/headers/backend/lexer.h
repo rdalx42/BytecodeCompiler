@@ -18,6 +18,7 @@ enum TOKEN_T{
 
     INT,
     FLOAT,
+    STRING,
     OP,
     LP,
     RP,
@@ -60,6 +61,7 @@ struct TOKEN {
     // std::optional variables to help during runtime
     std::optional<int>int_val;
     std::optional<double>double_val;
+    std::optional<std::string>str_val;
     std::optional<int>jump_pos;
     std::optional<int>scope_level;
     std::optional<int>var_id; // for STORE and LOAD 
@@ -106,6 +108,7 @@ char peek(LEXER& lex,int&index);
 void doidentifier(LEXER& lexer, int& index);
 void donum(LEXER& lexer, int& index);
 void dolex(LEXER&lexer);
+void dostring(LEXER& lexer, int& index);
 
 void display_lex(LEXER& lexer);
 
