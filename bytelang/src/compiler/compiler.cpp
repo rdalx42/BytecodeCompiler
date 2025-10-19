@@ -6,11 +6,9 @@
 COMPILER init(AST& ast, LEXER& lex) {
     COMPILER comp(ast, lex);
     //comp.memory.stack_vals.clear();
-    
-   // comp.memory.values.resize(MAX_VALS);
-   comp.memory.operation_stack.init(MAX_OP_STACK);
-   comp.lex.pre_calc_stack.resize(MAX_VALS);
-   comp.lex.pre_calc_stack.reserve(MAX_VALS);
+    comp.memory.operation_stack.init(MAX_OP_STACK);
+    comp.lex.pre_calc_stack.resize(MAX_VALS);
+    comp.lex.pre_calc_stack.reserve(MAX_VALS);
  //   comp.memory.operation_stack.resize(MAX_OP_STACK);
    
     comp.bytecode.clear();
@@ -46,7 +44,10 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
         case AST_INT:
         case AST_FLOAT:
             comp.bytecode += "PUSH " + nd->value + "\n";
-            
+            break;
+
+        case AST_STRING:
+            comp.bytecode += "PUSH \"" + nd->value + "\"\n";
             break;
 
         case AST_BLOCK_START:
@@ -188,20 +189,15 @@ void print_value(const VALUE& val) {
             std::cout << val.float_val;
             break;
         case STR_VAL:
-            if (val.str_val) std::cout << *val.str_val;
-            else std::cout << "null";
+            if(val.str_component.has_value()){
+                std::cout<<val.str_component->str_val;
+            }else{
+                display_err("String value doesn't have a string component");
+                return;
+            }
             break;
         case VEC_VAL:
-            if (val.vec_val) {
-                std::cout << "[";
-                for (size_t i = 0; i < val.vec_val->size(); ++i) {
-                    print_value((*val.vec_val)[i]);
-                    if (i + 1 < val.vec_val->size()) std::cout << ", ";
-                }
-                std::cout << "]";
-            } else {
-                std::cout << "[]";
-            }
+            val.arr_val->print_arr();
             break;
         default:
             std::cout << "unknown";
@@ -228,7 +224,10 @@ void compile(COMPILER& comp) {
                 std::cout << "Stack top: ";
                 if (!comp.memory.operation_stack.is_empty()==true){
                     print_value(comp.memory.operation_stack.get_back());
+                    comp.memory.operation_stack.pop();
                 }
+
+                
                 std::cout << "\n";
                 i++;
                 break;
@@ -241,37 +240,47 @@ void compile(COMPILER& comp) {
                 TOKEN& next = comp.lex.tokens[i + 1];
                 VALUE val;
 
-                if (next.type == TOKEN_T::INT) {
-                    val.type = INT_VAL;
-                    
-                    if(next.int_val.has_value()){
-                        val.int_val =*next.int_val;
-                    }else{
-                        display_err("Invalid integer value for PUSH");
-                        return;
-                    }
-                } else if (next.type == TOKEN_T::FLOAT) {
-                    if(next.double_val.has_value()){
+                switch (next.type) {
+                    case TOKEN_T::INT:
+                        val.type = INT_VAL;
+                        val.int_val=*next.int_val;
+                        break;
+
+                    case TOKEN_T::FLOAT:
                         val.type = FLOAT_VAL;
-                        val.float_val = *next.double_val;
-                    }else{
-                        display_err("Invalid float value for PUSH");
-                        return;
-                    }
-                } else if (next.type == TOKEN_T::IDENTIFIER) {
-                    //if (comp.memory.exists(next.value)) {
+                       // i//f (next.double_val.has_value()) {
+                            val.float_val = *next.double_val;
+              //   } else {
+                //            display_err("Invalid float value for PUSH");
+                //            return;
+                //        }
+                        break;
+
+                    case TOKEN_T::STRING:
+                       // if (next.str_val.has_value()) {
+                            val.type = STR_VAL;
+                            val.str_component.emplace();
+                            val.str_component->str_val = *next.str_val;
+                     //   } else {
+                     //       display_err("Invalid string value for PUSH");
+                     //       return;
+                     //   }
+                        break;
+
+                    case TOKEN_T::IDENTIFIER:
                         val = comp.memory.get(tok);
-                   // } else {
-                    //    display_err("Variable '" + next.value + "' not defined");
-                  //  }
-                } else {
-                    display_err("Expected value after PUSH");
+                        break;
+
+                    default:
+                        display_err("Expected value after PUSH");
+                        return;
                 }
 
                 comp.memory.operation_stack.push(val);
                 i += 2;
                 break;
             }
+
 
 
             case TOKEN_T::BYTECODE_DEL_BLOCK:{
@@ -302,6 +311,7 @@ void compile(COMPILER& comp) {
              //   std::cout<<"popping in gotoifzero: ";
                 //print_value(comp.memory.operation_stack.back());
               //  std::cout<<'\n';
+              //  comp.memory.free_value(val);
                 comp.memory.operation_stack.pop();
                // print_value(val);
                 
@@ -329,18 +339,13 @@ void compile(COMPILER& comp) {
 
             case TOKEN_T::BYTECODE_STORE:
                 if (i + 1 < comp.lex.tokens.size()) {
-                   // std::string var_name = comp.lex.tokens[i + 1].value;
+                   
                     if (!comp.memory.operation_stack.is_empty()) {
-                        VALUE val = comp.memory.operation_stack.get_back();
-                     //   std::cout<<"popping back on store:";
-                     //   print_value(comp.memory.operation_stack.back());
-                     //   std::cout<<"\n";
-                        comp.memory.operation_stack.pop();
-                     //   std::cout<<"storing: "<<var_name<<" to: \n";
-                     //   print_value(val);
-                       // std::cout<<"set to: "<<comp.lex.tokens[i + 1].value<<"\n";
-                        comp.memory.set(comp.lex.tokens[i], val);
-                    } else display_err("Stack underflow on STORE");
+                        VALUE val = comp.memory.operation_stack.pop(); // pop returns VALUE
+                        comp.memory.set(tok, val);
+                    } else {
+                        display_err("Stack underflow on STORE");
+                    }
                     i += 2;
                     
                 } else display_err("STORE missing variable name");
@@ -403,6 +408,9 @@ void compile(COMPILER& comp) {
                     VALUE b = comp.memory.operation_stack.get_back(); comp.memory.operation_stack.pop();
                     VALUE a = comp.memory.operation_stack.get_back(); comp.memory.operation_stack.pop();
 
+                   // comp.memory.free_value(a);
+                   // comp.memory.free_value(b);
+
                     double result = 0;
 
                     if ((a.type == INT_VAL || a.type == FLOAT_VAL) &&
@@ -433,7 +441,14 @@ void compile(COMPILER& comp) {
 
                         comp.memory.operation_stack.push(res_val);
 
-                    } else {
+                    }else if(a.type==STR_VAL && b.type==STR_VAL && tok.type==TOKEN_T::BYTECODE_ADD){
+                        VALUE res_val;
+                        res_val.type=STR_VAL;
+                        
+                        res_val.str_component.emplace();
+                        res_val.str_component->str_val = a.str_component->str_val + b.str_component->str_val;
+                        comp.memory.operation_stack.push(res_val);
+                    }else {
                         display_err("Type mismatch in arithmetic operation");
                     }
 
@@ -450,6 +465,8 @@ void compile(COMPILER& comp) {
             {
                 VALUE b = comp.memory.operation_stack.get_back(); comp.memory.operation_stack.pop();
                 VALUE a = comp.memory.operation_stack.get_back(); comp.memory.operation_stack.pop();
+             //   comp.memory.free_value(a);
+               // comp.memory.free_value(b);
 
                 bool result = false;
 
@@ -469,8 +486,8 @@ void compile(COMPILER& comp) {
                 }
                 // String comparison
                 else if (a.type == STR_VAL && b.type == STR_VAL) {
-                    const std::string& val_a = *(a.str_val);
-                    const std::string& val_b = *(b.str_val);
+                    const std::string val_a = a.str_component->str_val;
+                    const std::string val_b = b.str_component->str_val;
 
                     switch(tok.type) {
                         case TOKEN_T::BYTECODE_EQ:    result = val_a == val_b; break;
@@ -497,9 +514,11 @@ void compile(COMPILER& comp) {
 
 
             case TOKEN_T::BYTECODE_POP:
-                if (!comp.memory.operation_stack.is_empty())
+                if (!comp.memory.operation_stack.is_empty()){
                     comp.memory.operation_stack.pop();
-                else display_err("Stack underflow on POP");
+                   // comp.memory.free_value(comp.memory.operation_stack.get_back());
+                }
+                else {display_err("Stack underflow on POP");}
                 i++;
                 break;
 
