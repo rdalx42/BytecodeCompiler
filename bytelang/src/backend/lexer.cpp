@@ -45,6 +45,26 @@ void donum(LEXER& lex, int& index) {
     }
 }
 
+void dostring(LEXER& lex, int& index) {
+
+    char initial_quote = lex.content[index - 1];
+
+    while (index < lex.content.size()) {
+        char current = lex.content[index];
+        if (current == initial_quote) {
+            index++;
+            break;
+        } else {
+            lex.tokens.back().value += current; // for strings we don't need an actual value or anything like that
+            index++;
+        }
+    }
+
+    lex.tokens.back().type=STRING;
+    lex.tokens.back().str_val=lex.tokens.back().value;
+    
+}
+
 void doidentifier(LEXER& lex, int& index) {
     int token_index = lex.tokens.size() - 1;
     while (index < lex.content.size()) {
@@ -79,6 +99,7 @@ void dolex(LEXER& lex) {
             continue;
         }
         switch (current) {
+            
             case '(': lex.tokens.push_back({"(", LP}); index++; continue;
             case ')': lex.tokens.push_back({")", RP}); index++; continue;
             case '+': lex.tokens.push_back({"+", OP}); index++; continue;
@@ -141,6 +162,18 @@ void dolex(LEXER& lex) {
                     
                     continue;
                 }
+
+            case '"':
+                lex.tokens.push_back({"", STRING});
+                index++;
+                dostring(lex, index);
+                continue;
+            
+            case '\'':
+                lex.tokens.push_back({"", STRING});
+                index++;
+                dostring(lex, index);
+                continue;
         }
         if (digits.find(current) != std::string::npos) {
             lex.tokens.push_back({"", INT});
