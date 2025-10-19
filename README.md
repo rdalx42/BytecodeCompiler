@@ -12,7 +12,6 @@ do // scopes
     top
 end
 
-
 // variables
 x = 10 
 exited = 0
@@ -24,12 +23,10 @@ message = greeting + ", " + username  // string concatenation
 message
 top  // push result of string concatenation to stack
 
-
 // while loop
 while x < 100 do 
     x = x + 1
     x // this just sets the top value of the stack
-    // we access it via top
 
     if x == 50 do  // if statements 
         exited = 1
@@ -45,7 +42,7 @@ if exited == 1 do
     top
 else // else statement
     5
-    top // currently this is how we print stuff in a stack based machine
+    top
 end
 
 // string manipulation
@@ -54,6 +51,22 @@ user = "idkwho"
 welcome_msg = welcome_msg + user
 welcome_msg
 top
+
+// for loops
+for i = 0, 5 do
+    
+    i
+    top
+end
+
+
+for i = 0, 2 do
+    for j = 0, 2 do
+        x = i * 10 + j // nested for loopa
+        x
+        top
+    end
+end
 ```
 
 # Bytecode
@@ -68,14 +81,14 @@ PUSH 10
 STORE x
 PUSH 0
 STORE exited
-PUSH "hi"
+PUSH "hi "
 STORE greeting
 PUSH "idk"
-STORE name
+STORE username
 LOAD greeting
 PUSH ", "
 ADD
-LOAD name
+LOAD username
 ADD
 STORE message
 LOAD message
@@ -137,6 +150,67 @@ ADD
 STORE welcome_msg
 LOAD welcome_msg
 TOP
+PUSH 0
+STORE i
+>BUILTIN_FOR_START_3
+SAFETY_LABEL
+LOAD i
+PUSH 5
+LTE
+GOTOZERO_BUILTIN_FOR_END_3
+BLOCK_START
+LOAD i
+TOP
+BLOCK_END
+LOAD i
+PUSH 1
+ADD
+STORE i
+GOTO_BUILTIN_FOR_START_3
+>BUILTIN_FOR_END_3
+SAFETY_LABEL
+PUSH 0
+STORE i
+>BUILTIN_FOR_START_4
+SAFETY_LABEL
+LOAD i
+PUSH 2
+LTE
+GOTOZERO_BUILTIN_FOR_END_4
+BLOCK_START
+PUSH 0
+STORE j
+>BUILTIN_FOR_START_5
+SAFETY_LABEL
+LOAD j
+PUSH 2
+LTE
+GOTOZERO_BUILTIN_FOR_END_5
+BLOCK_START
+LOAD i
+PUSH 10
+MUL
+LOAD j
+ADD
+STORE x
+LOAD x
+TOP
+BLOCK_END
+LOAD j
+PUSH 1
+ADD
+STORE j
+GOTO_BUILTIN_FOR_START_5
+>BUILTIN_FOR_END_5
+SAFETY_LABEL
+BLOCK_END
+LOAD i
+PUSH 1
+ADD
+STORE i
+GOTO_BUILTIN_FOR_START_4
+>BUILTIN_FOR_END_4
+SAFETY_LABEL
 CLEANUP
 ...
 
@@ -150,6 +224,15 @@ Stack top: 13
 
 Stack top: exited early
 Stack top: Welcome idkwho
+
+....
+
+Stack top: 0
+Stack top: 1
+Stack top: 2
+Stack top: 3
+
+...
 
 Execution finished in 0.003 seconds.
 ```
