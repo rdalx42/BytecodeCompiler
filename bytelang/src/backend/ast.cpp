@@ -48,7 +48,10 @@ AST_NODE* parse_primary(AST& ast, int& index) {
     }else if (tok.type == FLOAT) {
         node = create_node(AST_FLOAT, tok.value);
         index++;
-    } else if (tok.type == IDENTIFIER) {
+    }else if(tok.type == STRING){
+        node = create_node(AST_STRING,tok.value);
+        index++;
+    }else if (tok.type == IDENTIFIER) {
         node = create_node(AST_VAR_ACCESS, tok.value);
         index++;
         if (index < ast.tokens.size() && ast.tokens[index].value == "=") {
@@ -95,7 +98,7 @@ AST_NODE* parse_primary(AST& ast, int& index) {
             
             if (index < ast.tokens.size() && ast.tokens[index].value == "do") {
                 index++;
-                AST_NODE* then_block = create_node(AST_BLOCK_START, "BLOCK_START");
+                AST_NODE* then_block = create_node(AST_BLOCK_START, "don't add");
                 while (index < ast.tokens.size() && ast.tokens[index].value != "end" && ast.tokens[index].value != "else") {
                     then_block->children.push_back(parse_comparison(ast, index));
                 }
@@ -225,6 +228,7 @@ std::string node_type_to_string(NODE_TYPE& type) {
         case AST_UN_OP: return "UNARY_OP";
         case AST_BIN_OP: return "BINARY_OP";
         case AST_INT: return "INT";
+        case AST_STRING: return "STRING";
         case AST_FLOAT: return "FLOAT";
         case AST_IDENTIFIER: return "IDENTIFIER";
         case AST_VAR_DECL: return "VAR_DECL";
