@@ -123,6 +123,53 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
             return;
         }
 
+        case AST_FOR: {
+            int this_for = builtin_goto_counter++;
+
+            AST_NODE* loop_var = nd->children[0];  // i
+            AST_NODE* start_val = nd->children[1]; // start
+            AST_NODE* end_val = nd->children[2];   // end
+            AST_NODE* body = nd->children[3];      // BLOCK_START
+
+            std::string start_label = "BUILTIN_FOR_START_" + std::to_string(this_for);
+            std::string end_label   = "BUILTIN_FOR_END_" + std::to_string(this_for);
+
+            // Initialize loop variable
+            generate_bytecode(comp, start_val);
+            comp.bytecode += "STORE " + loop_var->value + "\n";
+
+            // Loop start label
+            comp.bytecode += ">" + start_label + "\n";
+            comp.bytecode += "SAFETY_LABEL\n";
+
+            // Push loop variable and end value to compare
+            comp.bytecode += "LOAD " + loop_var->value + "\n";
+            generate_bytecode(comp, end_val);
+            comp.bytecode += "LTE\n";                 // if i <= end
+            comp.bytecode += "GOTOZERO_" + end_label + "\n"; // exit loop if false
+
+            // Loop body
+            comp.bytecode += "BLOCK_START\n";
+            generate_bytecode(comp, body);
+            comp.bytecode += "BLOCK_END\n";
+
+            // Increment loop variable
+            comp.bytecode += "LOAD " + loop_var->value + "\n";
+            comp.bytecode += "PUSH 1\n";
+            comp.bytecode += "ADD\n";
+            comp.bytecode += "STORE " + loop_var->value + "\n";
+
+            // Jump back to start
+            comp.bytecode += "GOTO_" + start_label + "\n";
+
+            // End label
+            comp.bytecode += ">" + end_label + "\n";
+            comp.bytecode += "SAFETY_LABEL\n";
+
+            return;
+        }
+
+
         case AST_TOP:
             comp.bytecode += "TOP\n";
             break;
