@@ -67,6 +67,11 @@ for i , 2 do // < -- by default i will be zero if nothing is declared
         top
     end
 end
+
+bytecode_seq do // <-- write bytecode directly in code!
+    PUSH 5 
+    TOP 
+end
 ```
 
 # Bytecode
@@ -211,6 +216,11 @@ STORE i
 GOTO_BUILTIN_FOR_START_4
 >BUILTIN_FOR_END_4
 SAFETY_LABEL
+// bytecode sequence start
+PUSH
+5
+TOP
+// bytecode sequence end
 CLEANUP
 ...
 
@@ -231,6 +241,7 @@ Stack top: 0
 Stack top: 1
 Stack top: 2
 Stack top: 3
+Stack top: 5
 
 ...
 
