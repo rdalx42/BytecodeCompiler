@@ -17,7 +17,7 @@ x = 10
 exited = 0
 
 // string variables
-greeting = "hi "
+greeting = "hi " // <-- by default the string lenght is 256, however it is adjustable (currently only in source code right now)
 username = "idk"
 message = greeting + ", " + username  // string concatenation
 message
