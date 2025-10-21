@@ -11,7 +11,7 @@
 #define MAX_OP_STACK 20
 #define MAX_STACK_VALS 1024
 #define MAX_VALS 1024
-#define MAX_STRING_LEN 256      // max string length
+#define DEFAULT_STRING_LEN 256      // default string length
 #define MAX_VECTOR_SIZE 128     // max elements in a vector
 
 // FIX CHAR BASED STRINGS
@@ -28,6 +28,8 @@ enum VAL_TYPE {
 struct FAST_STRING_COMPONENT{
     
     char* value;
+    unsigned int val_lenght=DEFAULT_STRING_LEN;
+
     void clear(){
         memset(value,0,strlen(value));
         value=nullptr;
@@ -208,8 +210,8 @@ struct MEMORY {
         size_t len_a=strlen(a.value);
         size_t len_b=strlen(b.value);
 
-        if(len_a+len_b>MAX_STRING_LEN){
-            display_err("String too long in concatenation operation");
+        if(len_a+len_b>dest.val_lenght){
+            display_err("String too long in concatenation operation, storage capacity string is of: "+std::to_string(dest.val_lenght));
             return;
         }
 
