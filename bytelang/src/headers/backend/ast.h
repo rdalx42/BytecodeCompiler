@@ -20,6 +20,7 @@ enum NODE_TYPE{
     AST_VAR_ASSIGN,
     AST_VAR_ACCESS,
     AST_PROGRAM,
+    AST_BUILTIN_BYTECODE_NODE,
    
     AST_GOTO_LABEL,
     AST_GOTO,
@@ -37,6 +38,7 @@ struct AST_NODE{
     NODE_TYPE type;
     std::string value;
     std::vector<AST_NODE*> children;
+    std::optional<std::string>string_content;
 };
 
 struct AST{
