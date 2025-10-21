@@ -10,7 +10,8 @@ COMPILER init(AST& ast, LEXER& lex) {
     comp.lex.pre_calc_stack.resize(MAX_VALS);
     comp.lex.pre_calc_stack.reserve(MAX_VALS);
 
-    comp.memory.fast_operation_temporary_slots.fots_str.value =  new char[MAX_STRING_LEN];
+    comp.memory.fast_operation_temporary_slots.fots_str.value =  new char[DEFAULT_STRING_LEN];
+    
     comp.memory.fast_operation_temporary_slots.fots_str.value[0] = '\0';
    
     comp.bytecode.clear();
@@ -97,6 +98,21 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
                 comp.bytecode += "SAFETY_LABEL\n";
             }
             return;
+        }
+
+        case AST_BUILTIN_BYTECODE_NODE:{
+            
+            comp.bytecode+="// bytecode sequence start \n";
+            comp.bytecode+="BLOCK_START\n";
+            if(!nd->children[0]->string_content.has_value()){
+                display_err("Invalid bytecode input");
+                return;
+            }
+
+            comp.bytecode+=nd->children[0]->string_content.value();
+
+            comp.bytecode+="// bytecode sequence end \n";
+            break;
         }
 
         case AST_WHILE:{
@@ -495,7 +511,7 @@ void compile(COMPILER& comp) {
                         VALUE res_val;
                         res_val.type = STR_VAL;
                         res_val.str_val = new FAST_STRING_COMPONENT();
-                        res_val.str_val->value = new char[MAX_STRING_LEN]; // allocate memory
+                        res_val.str_val->value = new char[DEFAULT_STRING_LEN]; // allocate memory
 
                         comp.memory.concat_fast_string_safe(*res_val.str_val, *a.str_val, *b.str_val); // copy+concat
 
