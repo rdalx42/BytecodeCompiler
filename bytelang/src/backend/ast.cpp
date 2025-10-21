@@ -208,6 +208,43 @@ AST_NODE* parse_primary(AST& ast, int& index) {
             index++; // skip 'end'
 
             node->children.push_back(block_node);
+        }else if(tok.value=="bytecode_seq"){
+
+            node = create_node(AST_BUILTIN_BYTECODE_NODE,"BYTECODE_SEQ");
+            index++;
+            if(index<ast.tokens.size()&&ast.tokens[index].value!="do"){
+                display_err("Expected 'do' after bytecode sequence");
+                return nullptr;
+            }
+
+            index++;
+
+            AST_NODE* block_node = create_node(AST_BLOCK_START,"don't add");
+            std::string bytecode_seq_value = "";
+
+            while(ast.tokens[index].value!="end"&&index<ast.tokens.size()){
+                
+                if(ast.tokens[index].value=="newline"){index++;continue;}
+                if(ast.tokens[index].type==TOKEN_T::KEYWORD){
+                    display_err("Only bytecode keywords allowed in bytecode sequence");
+                    return nullptr;
+                }
+
+                bytecode_seq_value+=ast.tokens[index].value; 
+                bytecode_seq_value+="\n";
+                index++;
+            }
+
+            //block_node->string_content.emplace();
+            block_node->string_content=bytecode_seq_value;
+            node->children.push_back(block_node);
+            
+            if(index == ast.tokens.size() || ast.tokens[index].value != "end"){
+                display_err("Expected 'end' after for block");
+                return nullptr;
+            }
+
+            index++;
         }
 
         } else {
@@ -275,8 +312,6 @@ AST* build_ast(AST& ast) {
 
 std::string node_type_to_string(NODE_TYPE& type) {
     switch (type) {
-        
-        
         case AST_TOP: return "TOP";
         case AST_UN_OP: return "UNARY_OP";
         case AST_BIN_OP: return "BINARY_OP";
@@ -296,6 +331,7 @@ std::string node_type_to_string(NODE_TYPE& type) {
         case AST_GOTO_LABEL : return "GOTO_LABEL";
         case AST_BLOCK_END : return "BLOCK_END";
         case AST_BLOCK_START : return "BLOCK_START";
+        case AST_BUILTIN_BYTECODE_NODE: return "BYTECODE SEQ";
         case AST_GOTO : return "GOTO";
         case AST_WHILE: return "WHILE";
         default: return "UNKNOWN";
@@ -346,5 +382,8 @@ if x == 0 do
 else 
 
 end
+
+str = "hi there" // by defaut size is 256
+resize(str,9) // resize
 
 */
