@@ -54,12 +54,47 @@ AST_NODE* parse_primary(AST& ast, int& index) {
     }else if (tok.type == IDENTIFIER) {
         node = create_node(AST_VAR_ACCESS, tok.value);
         index++;
+
+        while (index < ast.tokens.size() && ast.tokens[index].value == "[") {
+            index++; 
+            AST_NODE* index_expr = parse_comparison(ast, index);
+            if (index >= ast.tokens.size() || ast.tokens[index].value != "]") {
+                display_err("Expected ']' after index expression for variable " + tok.value);
+                return nullptr;
+            }
+            index++; 
+
+            AST_NODE* array_node = nullptr;
+
+            if (index < ast.tokens.size() && ast.tokens[index].value == "=") {
+                array_node = create_node(AST_VAR_ASSIGN_AT, node->value);
+            } else {
+                array_node = create_node(AST_VAR_ACCESS_AT, node->value);
+            }
+
+            array_node->children.push_back(node);      // variable
+            array_node->children.push_back(index_expr); // index
+            node = array_node;
+        }
+
         if (index < ast.tokens.size() && ast.tokens[index].value == "=") {
-            AST_NODE* assign_node = create_node(AST_VAR_ASSIGN, "=");
-            assign_node->children.push_back(node);
             index++;
-            assign_node->children.push_back(parse_comparison(ast, index));
-            node = assign_node;
+
+            AST_NODE* rhs = parse_comparison(ast, index);
+
+            if (node->type == AST_VAR_ASSIGN_AT) {
+                
+                AST_NODE* assign_expr_node = create_node(AST_VAR_ASSIGN, "ASSIGN_EXPR");
+                //AST_NODE* expression_of_paren = create_node(AST_)
+                assign_expr_node->children.push_back(rhs);
+                node->children.push_back(assign_expr_node);
+            } else {
+                
+                AST_NODE* assign_node = create_node(AST_VAR_ASSIGN, "=");
+                assign_node->children.push_back(node);
+                assign_node->children.push_back(rhs);
+                node = assign_node;
+            }
         }
     } else if (tok.type == LP) {
         index++;
@@ -312,6 +347,7 @@ AST* build_ast(AST& ast) {
 
 std::string node_type_to_string(NODE_TYPE& type) {
     switch (type) {
+        case AST_VAR_ACCESS_AT: return "ACCESS_AT";
         case AST_TOP: return "TOP";
         case AST_UN_OP: return "UNARY_OP";
         case AST_BIN_OP: return "BINARY_OP";
@@ -328,6 +364,7 @@ std::string node_type_to_string(NODE_TYPE& type) {
         case AST_FOR: return "FOR";
         case AST_ELSE: return "ELSE";
         case AST_NONE: return "";
+        case AST_VAR_ASSIGN_AT: return "ASSIGN_AT";
         case AST_GOTO_LABEL : return "GOTO_LABEL";
         case AST_BLOCK_END : return "BLOCK_END";
         case AST_BLOCK_START : return "BLOCK_START";
