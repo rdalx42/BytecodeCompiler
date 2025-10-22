@@ -6,7 +6,7 @@ const std::string digits = "0123456789";
 const std::string characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
 int bytecode_tok_cnt = 0;
 
-const std::vector<std::string>bytecode_keywords={"PUSH", "POP", "ADD", "SUB", "MUL", "DIV", "STORE", "LOAD", "POP_ALL", "CLEANUP","TOP","NEG","NOTEQ","EQ","LT","LTE","GT","GTE","GOTO","BLOCK_END","BLOCK_START","SAFETY_LABEL"};
+const std::vector<std::string>bytecode_keywords={"PUSH", "POP", "ADD", "SUB", "MUL", "DIV", "STORE", "LOAD", "POP_ALL", "CLEANUP","TOP","NEG","NOTEQ","EQ","LT","LTE","GT","GTE","GOTO","BLOCK_END","BLOCK_START","SAFETY_LABEL","SET_AT","LOAD_AT"};
 const std::vector<std::string>keywords={"top","goto","do","end","if","else","while","for","bytecode_seq"};
 
 char peek(LEXER& lex,int&index){
@@ -162,6 +162,16 @@ void dolex(LEXER& lex) {
                     
                     continue;
                 }
+            
+            case '[':
+                lex.tokens.push_back({"[",LPSQ});
+                index++;
+                continue;
+
+            case ']':
+                lex.tokens.push_back({"]",RPSQ});
+                index++;
+                continue;
 
             case '"':
                 lex.tokens.push_back({"", STRING});
@@ -192,6 +202,7 @@ void dolex(LEXER& lex) {
         if (characters.find(current) != std::string::npos) {
             lex.tokens.push_back({"", IDENTIFIER});
             doidentifier(lex, index);
+
             
             if(lex.in_bytecode==true){
 
@@ -217,6 +228,10 @@ void dolex(LEXER& lex) {
                         lex.tokens.back().type = BYTECODE_STORE;
                     }else if(lex.tokens.back().value=="LOAD"){
                         lex.tokens.back().type = BYTECODE_LOAD;
+                    }else if(lex.tokens.back().value=="SET_AT"){
+                        lex.tokens.back().type=BYTECODE_SET_AT;
+                    }else if(lex.tokens.back().value=="LOAD_AT"){
+                        lex.tokens.back().type=BYTECODE_LOAD_AT;    
                     }else if(lex.tokens.back().value=="POP_ALL"){
                         lex.tokens.back().type = BYTECODE_POP_ALL;
                     }else if(lex.tokens.back().value=="CLEANUP"){
@@ -387,6 +402,28 @@ void dolex(LEXER& lex) {
                 if (i + 1 < lex.tokens.size()) {
                     std::string var_name = lex.tokens[i + 1].value;
 
+                    if (lex.declared_variables.find(var_name) == lex.declared_variables.end()) {
+                        tok.var_id = -1; // default error value
+                        tok.variable_scope_level = lex.declared_variables[var_name].scope_level;
+                    } else {
+                        tok.var_id = lex.declared_variables[var_name].id;
+                        tok.variable_scope_level = lex.declared_variables[var_name].scope_level;
+                    }
+                }
+            }else if(tok.type==BYTECODE_SET_AT){
+                if(i+1<lex.tokens.size()){
+                    std::string var_name = lex.tokens[i+1].value;
+                    if (lex.declared_variables.find(var_name) == lex.declared_variables.end()) {
+                        tok.var_id = -1; // default error value
+                        tok.variable_scope_level = lex.declared_variables[var_name].scope_level;
+                    } else {
+                        tok.var_id = lex.declared_variables[var_name].id;
+                        tok.variable_scope_level = lex.declared_variables[var_name].scope_level;
+                    }
+                }
+            }else if(tok.type==BYTECODE_LOAD_AT){
+                if(i+1<lex.tokens.size()){
+                    std::string var_name = lex.tokens[i+1].value;
                     if (lex.declared_variables.find(var_name) == lex.declared_variables.end()) {
                         tok.var_id = -1; // default error value
                         tok.variable_scope_level = lex.declared_variables[var_name].scope_level;
