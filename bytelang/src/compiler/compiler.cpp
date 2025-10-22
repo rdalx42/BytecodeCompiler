@@ -67,6 +67,32 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
             comp.bytecode += "LOAD " + nd->value + "\n";
             break;
 
+        case AST_VAR_ASSIGN_AT: {
+            AST_NODE* var_access = nd->children[0];
+            AST_NODE* index_expr = nd->children[1];
+            AST_NODE* assign_expr = nd->children[2]; 
+
+            generate_bytecode(comp, index_expr);
+
+            if (!assign_expr->children.empty()) {
+                generate_bytecode(comp, assign_expr->children[0]);
+            }
+
+            comp.bytecode += "SET_AT " + var_access->value + "\n";
+            return;
+        }
+
+        case AST_VAR_ACCESS_AT:{
+
+            AST_NODE* var_to_access = nd->children[0];
+            AST_NODE* index_expr = nd->children[1];
+
+            generate_bytecode(comp,index_expr);
+
+            comp.bytecode+="LOAD_AT "+var_to_access->value+"\n";
+            return;
+        }
+
         case AST_IF: {
             int this_if = builtin_goto_counter++;
             AST_NODE* condition = nd->children[0];
@@ -297,6 +323,46 @@ void compile(COMPILER& comp) {
                 i++;
                 break;
 
+            case TOKEN_T::BYTECODE_LOAD_AT: {
+                if (!tok.var_id.has_value()) {
+                    display_err("LOAD_AT variable not initialized");
+                    break;
+                }
+
+                // Pop index from the stack
+                VALUE index_val = comp.memory.operation_stack.pop();
+                if (index_val.type != INT_VAL) {
+                    display_err("Index for LOAD_AT must be an integer");
+                    break;
+                }
+
+                // Get the variable from memory
+                VALUE& var_val = comp.memory.values[tok.var_id.value() - 1];
+
+                VALUE result;
+
+                if (var_val.type == STR_VAL) {
+                    char c = var_val.str_val->value[index_val.int_val];
+                    result.type = STR_VAL;
+                    result.str_val = new FAST_STRING_COMPONENT();
+                    result.str_val->value = new char[2];
+                    result.str_val->value[0] = c;
+                    result.str_val->value[1] = '\0';
+                } else if (var_val.type == VEC_VAL) {
+                    if (index_val.int_val < 0 || index_val.int_val >= var_val.arr_val->size)
+                        display_err("Index out of bounds in LOAD_AT");
+                    else
+                        result = *(var_val.arr_val->arr[index_val.int_val]);
+                } else {
+                    display_err("LOAD_AT only works on strings or vectors");
+                }
+
+                comp.memory.operation_stack.push(result);
+                i++;
+                break;
+            }
+ 
+
             case TOKEN_T::BYTECODE_PUSH: {
                 if (i + 1 >= comp.lex.tokens.size()) {
                     display_err("Expected value after PUSH");
@@ -367,7 +433,35 @@ void compile(COMPILER& comp) {
                 
                 i++;
                 break;
-            }// problem with got
+            }
+
+        case TOKEN_T::BYTECODE_SET_AT: {
+            
+            if (!tok.var_id.has_value()) {
+                display_err("SET_AT target variable not initialized");
+                break;
+            }
+
+            VALUE& target = comp.memory.values[tok.var_id.value() - 1];
+            
+            VALUE char_or_val = comp.memory.operation_stack.pop();
+            VALUE index_val = comp.memory.operation_stack.pop();
+
+
+            if (target.type == STR_VAL && char_or_val.type == STR_VAL && index_val.type == INT_VAL) {
+                target.str_val->set_at(index_val.int_val, char_or_val.str_val->value[0]);
+            } else if (target.type == VEC_VAL && index_val.type == INT_VAL) {
+                if (index_val.int_val < 0 || index_val.int_val >= target.arr_val->size)
+                    display_err("Index out of bounds in SET_AT");
+                else
+                    *(target.arr_val->arr[index_val.int_val]) = char_or_val;
+            } else {
+                display_err("Invalid types for SET_AT");
+            }
+
+            i++;
+            break;
+        }
 
             case TOKEN_T::BYTECODE_GOTO_IF_ZERO: {
                 if (comp.memory.operation_stack.is_empty()) {
@@ -401,7 +495,6 @@ void compile(COMPILER& comp) {
                 }
                 break;
             }
-
 
             case TOKEN_T::BYTECODE_STORE:
                 if (i + 1 < comp.lex.tokens.size()) {
