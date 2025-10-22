@@ -14,16 +14,12 @@
 #define DEFAULT_STRING_LEN 256      // default string length
 #define MAX_VECTOR_SIZE 128     // max elements in a vector
 
-// FIX CHAR BASED STRINGS
-
 enum VAL_TYPE {
     INT_VAL,
     FLOAT_VAL,
     STR_VAL,
     VEC_VAL
 };
-
-
 
 struct FAST_STRING_COMPONENT{
     
@@ -37,6 +33,18 @@ struct FAST_STRING_COMPONENT{
     void output(){
         std::cout<<*value;
     }
+
+    void set_at(const int& index, const char& char_val){
+        
+        if(index<0||index>val_lenght){
+            display_err("Can't modify string value at position greated than size!");
+            return;
+        }
+
+        value[index]=char_val;
+    }
+
+        
 };
 
 struct VALUE; 
@@ -72,6 +80,7 @@ struct ARR_COMPONENT {
     void clear_arr() {
         
         size = 0;
+    
     }
 
 };
