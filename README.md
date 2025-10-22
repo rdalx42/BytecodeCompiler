@@ -18,6 +18,7 @@ exited = 0
 
 // string variables
 greeting = "hi " // <-- by default the string lenght is 256, however it is adjustable (currently only in source code right now)
+greeting[1]=greeting[0] // <-- this is how we index stuff
 username = "idk"
 message = greeting + ", " + username  // string concatenation
 message
@@ -88,6 +89,10 @@ PUSH 0
 STORE exited
 PUSH "hi "
 STORE greeting
+PUSH 1
+PUSH 0
+LOAD_AT greeting
+SET_AT greeting
 PUSH "idk"
 STORE username
 LOAD greeting
@@ -217,6 +222,7 @@ GOTO_BUILTIN_FOR_START_4
 >BUILTIN_FOR_END_4
 SAFETY_LABEL
 // bytecode sequence start
+BLOCK_START
 PUSH
 5
 TOP
@@ -225,7 +231,7 @@ CLEANUP
 ...
 
 Stack top: 5
-Stack top: hi, idk
+Stack top: hh, idk
 Stack top: 11
 Stack top: 12
 Stack top: 13
