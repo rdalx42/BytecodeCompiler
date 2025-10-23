@@ -295,6 +295,16 @@ AST_NODE* parse_factor(AST& ast, int& index) {
         index++;
         neg_node->children.push_back(parse_factor(ast, index));
         return neg_node;
+    }else if(index<ast.tokens.size()&&ast.tokens[index].value == "+"){
+        AST_NODE* add_neg_node = create_node(AST_UN_OP,"ADD_NEG");
+        index++;
+        add_neg_node->children.push_back(parse_factor(ast,index));
+        return add_neg_node;
+    }else if(index<ast.tokens.size()&&ast.tokens[index].value == "!"){
+        AST_NODE* add_neg_node = create_node(AST_UN_OP,"NOT");
+        index++;
+        add_neg_node->children.push_back(parse_factor(ast,index));
+        return add_neg_node;
     }
     return parse_primary(ast, index);
 }
