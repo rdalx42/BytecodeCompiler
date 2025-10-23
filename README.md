@@ -73,6 +73,19 @@ bytecode_seq do // <-- write bytecode directly in code!
     PUSH 5 
     TOP 
 end
+
+// unary operations 
+
+var = 5
+var = !x 
+var 
+top 
+var = -(5+5)
+var 
+top 
+var = +(-5)
+var 
+top
 ```
 
 # Bytecode
@@ -227,6 +240,26 @@ PUSH
 5
 TOP
 // bytecode sequence end
+PUSH 5
+STORE var
+LOAD x
+NOT
+STORE var
+LOAD var
+TOP
+PUSH 5
+PUSH 5
+ADD
+NEG
+STORE var
+LOAD var
+TOP
+PUSH 5
+NEG
+ADD_NEG
+STORE var
+LOAD var
+TOP
 CLEANUP
 ...
 
@@ -247,6 +280,9 @@ Stack top: 0
 Stack top: 1
 Stack top: 2
 Stack top: 3
+Stack top: 5
+Stack top: 0
+Stack top: -10
 Stack top: 5
 
 ...
