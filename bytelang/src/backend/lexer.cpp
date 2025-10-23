@@ -6,7 +6,7 @@ const std::string digits = "0123456789";
 const std::string characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
 int bytecode_tok_cnt = 0;
 
-const std::vector<std::string>bytecode_keywords={"PUSH", "POP", "ADD", "SUB", "MUL", "DIV", "STORE", "LOAD", "POP_ALL", "CLEANUP","TOP","NEG","NOTEQ","EQ","LT","LTE","GT","GTE","GOTO","BLOCK_END","BLOCK_START","SAFETY_LABEL","SET_AT","LOAD_AT"};
+const std::vector<std::string>bytecode_keywords={"PUSH", "POP", "ADD", "SUB", "MUL", "DIV", "STORE", "LOAD", "POP_ALL", "CLEANUP","TOP","NEG","NOTEQ","EQ","LT","LTE","GT","GTE","GOTO","BLOCK_END","BLOCK_START","SAFETY_LABEL","SET_AT","LOAD_AT","ADD_NEG","NOT"};
 const std::vector<std::string>keywords={"top","goto","do","end","if","else","while","for","bytecode_seq"};
 
 char peek(LEXER& lex,int&index){
@@ -145,8 +145,12 @@ void dolex(LEXER& lex) {
                 }
                 lex.tokens.push_back({"<", OP}); index++; continue;
             case '!':
+                
                 if(peek(lex,index) == '='){
                     lex.tokens.push_back({"!=", OP}); index+=2; continue;
+                }else{
+                    lex.tokens.push_back({"!",OP});
+                    
                 }
                 
                 index++;
@@ -218,8 +222,12 @@ void dolex(LEXER& lex) {
                         lex.tokens.back().type = BYTECODE_POP;
                     }else if(lex.tokens.back().value=="ADD"){
                         lex.tokens.back().type = BYTECODE_ADD;
-                    }else if(lex.tokens.back().value=="SUB"||lex.tokens.back().value=="NEG"){
+                    }else if(lex.tokens.back().value=="SUB"){
                         lex.tokens.back().type = BYTECODE_SUB;
+                    }else if(lex.tokens.back().value == "NEG"){
+                        lex.tokens.back().type = BYTECODE_NEG;
+                    }else if(lex.tokens.back().value == "ADD_NEG"){
+                        lex.tokens.back().type=BYTECODE_ADD_NEG;
                     }else if(lex.tokens.back().value=="MUL"){
                         lex.tokens.back().type = BYTECODE_MUL;
                     }else if(lex.tokens.back().value=="DIV"){
@@ -232,6 +240,8 @@ void dolex(LEXER& lex) {
                         lex.tokens.back().type=BYTECODE_SET_AT;
                     }else if(lex.tokens.back().value=="LOAD_AT"){
                         lex.tokens.back().type=BYTECODE_LOAD_AT;    
+                    }else if(lex.tokens.back().value == "NOT"){
+                        lex.tokens.back().type = BYTECODE_NOT;
                     }else if(lex.tokens.back().value=="POP_ALL"){
                         lex.tokens.back().type = BYTECODE_POP_ALL;
                     }else if(lex.tokens.back().value=="CLEANUP"){
