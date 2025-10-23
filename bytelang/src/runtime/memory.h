@@ -9,10 +9,11 @@
 #pragma GCC optimize("Ofast","inline-functions")
 
 #define MAX_OP_STACK 20
-#define MAX_STACK_VALS 1024
+#define MAX_STACK_VALS 124
 #define MAX_VALS 1024
 #define DEFAULT_STRING_LEN 256      // default string length
 #define MAX_VECTOR_SIZE 128     // max elements in a vector
+
 
 enum VAL_TYPE {
     INT_VAL,
@@ -20,6 +21,7 @@ enum VAL_TYPE {
     STR_VAL,
     VEC_VAL
 };
+
 
 struct FAST_STRING_COMPONENT{
     
