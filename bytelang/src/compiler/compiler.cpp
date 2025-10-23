@@ -9,6 +9,8 @@ COMPILER init(AST& ast, LEXER& lex) {
     comp.memory.operation_stack.init(MAX_OP_STACK);
     comp.lex.pre_calc_stack.resize(MAX_VALS);
     comp.lex.pre_calc_stack.reserve(MAX_VALS);
+    comp.lex.declared_variables.reserve(MAX_VALS);
+
 
     comp.memory.fast_operation_temporary_slots.fots_str.value =  new char[DEFAULT_STRING_LEN];
     
@@ -220,8 +222,17 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
 
         case AST_UN_OP:
             if (!nd->children.empty()) {
-                generate_bytecode(comp, nd->children[0]);
-                comp.bytecode += "NEG\n";
+                    
+                if(nd->value=="NEG"){ // i could've just pushed their value but it's unsafe
+                    generate_bytecode(comp, nd->children[0]);
+                    comp.bytecode += "NEG\n";
+                }else if(nd->value=="ADD_NEG"){
+                    generate_bytecode(comp, nd->children[0]);
+                    comp.bytecode += "ADD_NEG\n";
+                }else if(nd->value=="NOT"){
+                    generate_bytecode(comp, nd->children[0]);
+                    comp.bytecode += "NOT\n";
+                }
             }
             return;
 
@@ -240,7 +251,13 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
                 if (nd->value == "-" && nd->children[0]->type == AST_NONE) {
                     generate_bytecode(comp, nd->children[1]);
                     comp.bytecode += "NEG\n";
-                } else {
+                }else if(nd->value == "+" && nd->children[0]->type == AST_NONE){
+                    generate_bytecode(comp, nd->children[1]);
+                    comp.bytecode += "ADD_NEG\n";
+                }else if(nd->value == "!" && nd->children[0]->type == AST_NONE){
+                    generate_bytecode(comp, nd->children[1]);
+                    comp.bytecode += "NOT\n";
+                }else {
                     generate_bytecode(comp, nd->children[0]);
                     generate_bytecode(comp, nd->children[1]);
                     if (nd->value == "+") comp.bytecode += "ADD\n";
@@ -551,14 +568,67 @@ void compile(COMPILER& comp) {
                 i++; // just skip the label token
                 break;
 
+            case TOKEN_T::BYTECODE_ADD_NEG:
+            case TOKEN_T::BYTECODE_NOT:
+            case TOKEN_T::BYTECODE_NEG:{
+                
+                if(comp.memory.operation_stack.sz()<1){
+                    display_err("Stack underflow on binary negate opertion");
+                    i++;
+                    break;
+                }
+
+                {
+                    VALUE a = comp.memory.operation_stack.get_back() ; comp.memory.operation_stack.pop_no_return();
+
+                    if(a.type!=INT_VAL&&a.type!=FLOAT_VAL){
+                        display_err("Binary negate operation only works on values of type int and float");
+                        i++;
+                        break;
+                    }
+
+                    double val_a = (a.type == INT_VAL) ? a.int_val : a.float_val;
+
+                    switch(tok.type){                    
+                        case TOKEN_T::BYTECODE_ADD_NEG: val_a=std::abs(val_a);  break;
+                        case TOKEN_T::BYTECODE_NEG:   val_a = -val_a;  break;
+                        case TOKEN_T::BYTECODE_NOT:{
+                            
+                            a.type=INT_VAL; // so we only return 1 or 0
+                            
+                            if(val_a == 0){ val_a = 1; }else{ val_a = 0;}
+
+                            break;
+                        }
+                    }
+                    
+                    VALUE res_val;
+                    res_val.type = a.type;
+                    
+                    switch(a.type){
+                        case INT_VAL:
+                            res_val.int_val = val_a;
+                            break;
+                        default:
+                            res_val.float_val = val_a;
+                            break;
+                    }
+
+                    comp.memory.operation_stack.push(res_val);
+                    
+                }
+                i++;
+                break;
+            }
+
             case TOKEN_T::BYTECODE_ADD:
             case TOKEN_T::BYTECODE_SUB:
             case TOKEN_T::BYTECODE_MUL:
             case TOKEN_T::BYTECODE_DIV:
-                
+
                 if (comp.memory.operation_stack.sz() < 2) {
                     
-                    print_value(comp.memory.operation_stack.get_back());
+                 //   print_value(comp.memory.operation_stack.get_back());
                     display_err("Stack underflow on +,-,*,/ operation, expected two elements on stack got: "+std::to_string(comp.memory.operation_stack.sz()));
                     i++;
                     break;
