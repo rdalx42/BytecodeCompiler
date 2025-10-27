@@ -13,6 +13,7 @@
 #define MAX_VALS 1024
 #define DEFAULT_STRING_LEN 256      // default string length
 #define MAX_VECTOR_SIZE 128     // max elements in a vector
+#define MAX_CALL_STACK 128
 
 
 enum VAL_TYPE {
@@ -22,6 +23,33 @@ enum VAL_TYPE {
     VEC_VAL
 };
 
+struct CALL_STACK{
+
+   // V <-- represents the return position of function
+    int frames[MAX_CALL_STACK]; // we store them in frames, FIFO -> the first-out value will always be the right value, hopefully this won't cause too many issues with the recursion logic
+    unsigned int top=0;
+
+    void push(const unsigned int& return_pos) {
+        std::cout<<"pushed: "<<return_pos<<"\n";
+        if (top >= MAX_CALL_STACK) {
+            display_err("Function call stack overflow");
+        }
+        frames[top++] = return_pos;
+    }
+
+    void pop() {
+        if (top == 0) {
+            display_err("Function call stack underflow");
+        }
+        --top;
+    }
+
+    int& top_frame() {
+        return frames[top - 1];
+    }
+
+    bool empty() const { return top == 0; }
+};
 
 struct FAST_STRING_COMPONENT{
     
@@ -136,7 +164,7 @@ struct vexa_stack {
         free(data);
         data = nullptr;
         top = 0;
-        capacity = 0;
+       
     }
 
     inline void clear_stack(){
@@ -187,6 +215,7 @@ struct MEMORY {
         }
 
         // free old string
+       /// std::cout<<"stored: "<<tok.var_id.value()<<'\n';
         VALUE& old_val = values[tok.var_id.value() - 1]; 
         if (old_val.type == STR_VAL && old_val.str_val) {
             if (old_val.str_val->value) free(old_val.str_val->value);
@@ -206,6 +235,7 @@ struct MEMORY {
 
 
     inline void delete_val(const int& id) {
+      //  std::cout<<"erased: "<<id<<"\n";
         values[id].clear_val();
         length_of_values--;
     }
@@ -245,6 +275,7 @@ struct MEMORY {
     }
 
     inline const VALUE& get(const TOKEN& tok) const { // pass by reference
+    //    std::cout<<">"<<tok.value<<"\n";
         if (tok.var_id.value() == -1) {
             display_err("Invalid variable");
             static VALUE dummy{};
