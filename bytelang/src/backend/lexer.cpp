@@ -6,8 +6,8 @@ const std::string digits = "0123456789";
 const std::string characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
 int bytecode_tok_cnt = 0;
 
-const std::vector<std::string>bytecode_keywords={"PUSH", "POP", "ADD", "SUB", "MUL", "DIV", "STORE", "LOAD", "POP_ALL", "CLEANUP","TOP","NEG","NOTEQ","EQ","LT","LTE","GT","GTE","GOTO","BLOCK_END","BLOCK_START","SAFETY_LABEL","SET_AT","LOAD_AT","ADD_NEG","NOT"};
-const std::vector<std::string>keywords={"top","goto","do","end","if","else","while","for","bytecode_seq"};
+const std::vector<std::string>bytecode_keywords={"PUSH", "POP", "ADD", "SUB", "MUL", "DIV", "STORE", "LOAD", "POP_ALL", "CLEANUP","TOP","NEG","NOTEQ","EQ","LT","LTE","GT","GTE","GOTO","BLOCK_END","BLOCK_START","SAFETY_LABEL","SET_AT","LOAD_AT","ADD_NEG","NOT","RET"};
+const std::vector<std::string>keywords={"top","goto","do","end","if","else","while","for","func","return"};
 
 char peek(LEXER& lex,int&index){
     if(index+1 < lex.content.size()){
@@ -80,6 +80,8 @@ void doidentifier(LEXER& lex, int& index) {
 
 void dolex(LEXER& lex) {
 
+   // static std::vector<std::string>to_pair = {};
+   // to_pair.resize(5);
 
     int index = 0;
     int current_scope_count=0;
@@ -244,6 +246,9 @@ void dolex(LEXER& lex) {
                         lex.tokens.back().type = BYTECODE_NOT;
                     }else if(lex.tokens.back().value=="POP_ALL"){
                         lex.tokens.back().type = BYTECODE_POP_ALL;
+                    }else if(lex.tokens.back().value == "RET"){
+                     //   std::cout<<"found\n";
+                        lex.tokens.back().type = BYTECODE_RET;
                     }else if(lex.tokens.back().value=="CLEANUP"){
                         lex.tokens.back().type = BYTECODE_CLEANUP;
                     }else if( lex.tokens.back().value=="TOP"|| lex.tokens.back().value=="top"){
@@ -341,9 +346,34 @@ void dolex(LEXER& lex) {
 
 
             } else if (tok.type == BYTECODE_GOTO_LABEL) {
+              //  std::cout<<"found label of value: "<<tok.value<<" ; "<<tok.value.substr(21)<<"\n";
                 std::string label = tok.value.substr(1);
                 lex.goto_scope_count[label].scope_level = current_scope_count;
+                if(tok.value.size()>=21){
+                    if(tok.value.find(">FUNCTION_DECL_LABEL_") == 0){
+                    
+                        bool found_pair=false;
+                        const std::string end_label = ">FUNCTION_DECL_END_" + tok.value.substr(21); 
+                    
+                        for(int j = 0;j<lex.tokens.size();j++){
+                            if(lex.tokens[j].type!=BYTECODE_GOTO_LABEL){
+                                continue;
+                            }
 
+                            if(lex.tokens[j].value==end_label){
+                                found_pair=true;
+                                tok.pair_token_jump_pos = j;
+                                break;
+                            }
+                        }
+
+                        if(found_pair==false){
+                            display_err("Invalid function goto label of name: " + tok.value +"; Expected an end_label allocated to it within the compiler bytecode");
+                            return;
+                        }
+                    }
+                        
+                }
             }
         }
 
@@ -392,7 +422,7 @@ void dolex(LEXER& lex) {
                 current_scope_count--;
             }
 
-            else if (tok.type == BYTECODE_STORE) {
+            else if (tok.type == BYTECODE_STORE ) {
                 if (i + 1 < lex.tokens.size()) {
                     std::string var_name = lex.tokens[i + 1].value;
 
