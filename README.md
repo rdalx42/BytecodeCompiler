@@ -69,22 +69,19 @@ for i , 2 do // < -- by default i will be zero if nothing is declared
     end
 end
 
-bytecode_seq do // <-- write bytecode directly in code!
-    PUSH 5 
-    TOP 
-end
+
 
 // unary operations 
 
-var = 5
-var = !x 
-var 
+untest = 5
+untest = !x 
+untest 
 top 
-var = -(5+5)
-var 
+untest = -(5+5)
+untest 
 top 
-var = +(-5)
-var 
+untest = +(-5)
+untest 
 top
 ```
 
@@ -234,12 +231,6 @@ STORE i
 GOTO_BUILTIN_FOR_START_4
 >BUILTIN_FOR_END_4
 SAFETY_LABEL
-// bytecode sequence start
-BLOCK_START
-PUSH
-5
-TOP
-// bytecode sequence end
 PUSH 5
 STORE var
 LOAD x
