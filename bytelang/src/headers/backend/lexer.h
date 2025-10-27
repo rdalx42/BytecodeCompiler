@@ -30,8 +30,9 @@ enum TOKEN_T{
     GOTO_LABEL,
     COMMA,
     ACCESS_IDENTIFIER,
-
+    
     // bytecode
+    BYTECODE_RET,
     BYTECODE_GOTO_LABEL,
     BYTECODE_SET_AT,
     BYTECODE_LOAD_AT,
@@ -71,9 +72,9 @@ struct TOKEN {
     std::optional<double>double_val;
     std::optional<std::string>str_val;
     std::optional<int>jump_pos;
+    std::optional<size_t>pair_token_jump_pos;
     std::optional<int>scope_level;
     std::optional<int>var_id; // for STORE and LOAD 
-
     std::optional<int>variable_scope_level; // for debugging mainly
     std::optional<bool>is_new_val; // for STORE instruction
 };
@@ -96,6 +97,7 @@ struct PRE_CALC_VAR_DATA{
 struct LEXER{
     
     bool in_bytecode=false;
+    bool in_bytecode_pre_compiled=false;
     std::string content;
     size_t pos = 0;
     std::vector<TOKEN> tokens;
