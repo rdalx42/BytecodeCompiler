@@ -26,6 +26,121 @@ COMPILER init(AST& ast, LEXER& lex) {
 /*
 Generate bytecode && precompute builtin control flow structures
 */
+
+void print_bytecode(COMPILER& comp) {
+    int indent = 0;
+
+    std::cout << "\n=========== VEXA BYTECODE ===========\n";
+
+    for (size_t i = 0; i < comp.lex.tokens.size(); ++i) {
+        TOKEN& tok = comp.lex.tokens[i];
+
+        if (tok.type == TOKEN_T::BYTECODE_DEL_BLOCK) {
+            indent--;
+        }
+
+        for (int j = 0; j < indent; ++j) {
+            std::cout << "  ";
+        }
+
+        switch (tok.type) {
+            case TOKEN_T::BYTECODE_PUSH:
+                std::cout << i << ": PUSH " << comp.lex.tokens[i + 1].value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_LOAD:
+                std::cout << i << ": LOAD " << comp.lex.tokens[i + 1].value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_STORE:
+                std::cout << i << ": STORE " << comp.lex.tokens[i + 1].value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_ADD:    std::cout << i << ": ADD\n"; break;
+            case TOKEN_T::BYTECODE_SUB:    std::cout << i << ": SUB\n"; break;
+            case TOKEN_T::BYTECODE_MUL:    std::cout << i << ": MUL\n"; break;
+            case TOKEN_T::BYTECODE_DIV:    std::cout << i << ": DIV\n"; break;
+
+            case TOKEN_T::BYTECODE_NEG:        std::cout << i << ": NEG\n"; break;
+            case TOKEN_T::BYTECODE_ADD_NEG:    std::cout << i << ": ADD_NEG\n"; break;
+            case TOKEN_T::BYTECODE_NOT:        std::cout << i << ": NOT\n"; break;
+
+            case TOKEN_T::BYTECODE_EQ:     std::cout << i << ": EQ\n"; break;
+            case TOKEN_T::BYTECODE_NOTEQ:  std::cout << i << ": NOTEQ\n"; break;
+            case TOKEN_T::BYTECODE_GT:     std::cout << i << ": GT\n"; break;
+            case TOKEN_T::BYTECODE_GTE:    std::cout << i << ": GTE\n"; break;
+            case TOKEN_T::BYTECODE_LT:     std::cout << i << ": LT\n"; break;
+            case TOKEN_T::BYTECODE_LTE:    std::cout << i << ": LTE\n"; break;
+
+            case TOKEN_T::BYTECODE_LOAD_AT:
+                std::cout << i << ": LOAD_AT " << comp.lex.tokens[i + 1].value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_SET_AT:
+                std::cout << i << ": SET_AT " << comp.lex.tokens[i + 1].value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_MAKE_BLOCK:
+                std::cout << i << ": BLOCK_START\n";
+                indent++;
+                break;
+
+            case TOKEN_T::BYTECODE_DEL_BLOCK:
+                std::cout << i << ": BLOCK_END\n";
+                break;
+
+            case TOKEN_T::BYTECODE_GOTO:
+                if (tok.jump_pos.has_value())
+                    std::cout << i << ": GOTO -> " << *tok.jump_pos << "\n";
+                else
+                    std::cout << i << ": GOTO (unresolved)\n";
+                break;
+
+            case TOKEN_T::BYTECODE_GOTO_LABEL:
+                std::cout << i << ": LABEL " << tok.value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_GOTO_IF_ZERO:
+                if (tok.jump_pos.has_value())
+                    std::cout << i << ": GOTOZERO -> " << *tok.jump_pos << "\n";
+                else
+                    std::cout << i << ": GOTOZERO (unresolved)\n";
+                break;
+
+            case TOKEN_T::BYTECODE_RET:
+                std::cout << i << ": RET\n";
+                break;
+
+            case TOKEN_T::BYTECODE_SAFETY:
+                std::cout << i << ": SAFETY_LABEL\n";
+                break;
+
+            case TOKEN_T::BYTECODE_TOP:
+                std::cout << i << ": TOP (print top of stack)\n";
+                break;
+
+            case TOKEN_T::BYTECODE_POP:
+                std::cout << i << ": POP\n";
+                break;
+
+            case TOKEN_T::BYTECODE_POP_ALL:
+                std::cout << i << ": POP_ALL\n";
+                break;
+
+            case TOKEN_T::BYTECODE_CLEANUP:
+                std::cout << i << ": CLEANUP\n";
+                break;
+
+            
+            default:
+                std::cout << i << ": " << tok.value << "\n";
+                break;
+        }
+    }
+
+    std::cout << "=========== END BYTECODE ===========\n";
+}
+
 void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
     
     static int builtin_goto_counter = 0;
@@ -772,3 +887,4 @@ void compile(COMPILER& comp) {
         }
     }
 }
+
