@@ -51,7 +51,7 @@ void doshell(SHELL& sh) {
     compiler.lex.tokens=lex2.tokens;
 
     
-    std::cout << "\nBytecode:\n" << compiler.bytecode << "\n";
+    print_bytecode(compiler);
 
     time_t start_time = clock();
     size_t total_bytes_allocated_before_execution = total_bytes_allocated;
