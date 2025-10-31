@@ -1,6 +1,8 @@
 # BytecodeCompiler
 
 <h4> A <i>small</i> and <i>compact</i>, <i>lightweight</i> on runtime and quite <i>fast</i> home-made programming language </h4>
+<i> made in around ~2k LOC, faster than python in hotloops</i>
+<br>
 
 <br>
 
