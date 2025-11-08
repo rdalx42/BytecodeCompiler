@@ -19,7 +19,7 @@
 ```Pascal
 // Variables in Vexa //
 
-integrer_variable = 50 
+integer_variable = 50 
 
 float_variable = 21.42 + 42.11/533 + (5+integrer_variable)
 
