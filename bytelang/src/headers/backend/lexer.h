@@ -72,11 +72,22 @@ struct TOKEN {
     std::optional<double>double_val;
     std::optional<std::string>str_val;
     std::optional<int>jump_pos;
-    std::optional<size_t>pair_token_jump_pos;
+    bool used_function=false; // if false we don't add to memory, this we'll also be toggled via the AST, since a function won't be unused if passed as a parameter
+    bool is_function=false;
+   // std::optional<size_t>pair_token_jump_pos;
     std::optional<int>scope_level;
     std::optional<int>var_id; // for STORE and LOAD 
     std::optional<int>variable_scope_level; // for debugging mainly
-    std::optional<bool>is_new_val; // for STORE instruction
+    std::optional<bool>is_new_val;
+    std::optional<int>function_base_scope;
+
+
+    union goto_check_union{
+        bool is_function_start = false;
+        size_t pair_token_jump_pos;
+        
+    }goto_check_union;
+
 };
 
 struct SCOPE_COUNT{
@@ -101,6 +112,7 @@ struct LEXER{
     std::string content;
     size_t pos = 0;
     std::vector<TOKEN> tokens;
+    std::vector<bool>unused_load_function_indicies_info;
     
     std::vector<PRE_CALC_STACK_VALUE>pre_calc_stack;
 
