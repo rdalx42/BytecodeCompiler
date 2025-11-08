@@ -91,7 +91,7 @@ goto ::hi
 <h4>
     Functions in Vexa have a simple design, a function can  <br>
     only recurse itself if called in return statement, speaking of which <br>
-    a function can't be returned in a binary operation
+    a function can't be returned in a binary operation, empty do...end scopes can't be amde within functions
 </h4>
 
 ```Pascal
