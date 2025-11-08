@@ -25,7 +25,7 @@ float_variable = 21.42 + 42.11/533 + (5+integrer_variable)
 
 string_variable = "hello_world"
 
-string_variable += string_variable[0]
+string_variable = string_variable + string_variable[0]
 ```
 
 <h3>Unary Operations</h3>
