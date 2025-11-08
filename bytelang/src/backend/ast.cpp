@@ -36,9 +36,13 @@ AST_NODE* parse_program(AST& ast) {
 }
 
 AST_NODE* parse_primary(AST& ast, int& index) {
+    
+    static int function_call_depth_amount = 0;
+    
     if (index >= ast.tokens.size()) return create_node(AST_NONE, "NONE");
     TOKEN& tok = ast.tokens[index];
     AST_NODE* node = nullptr;
+    
     if (tok.type == INT) {
         node = create_node(AST_INT, tok.value);
         index++;
@@ -54,6 +58,41 @@ AST_NODE* parse_primary(AST& ast, int& index) {
     }else if (tok.type == IDENTIFIER) {
         node = create_node(AST_VAR_ACCESS, tok.value);
         index++;
+
+        if (index < ast.tokens.size() && ast.tokens[index].type == LP) { // parse function call
+            index++; 
+            AST_NODE* call_node = create_node(AST_FUNC_CALL, tok.value);
+            
+            function_call_depth_amount++;
+            
+            
+            while (index < ast.tokens.size() && ast.tokens[index].type != RP) {
+                AST_NODE* arg = parse_comparison(ast, index);
+                call_node->children.push_back(arg);
+
+                if (index < ast.tokens.size() && ast.tokens[index].type == COMMA) {
+                    index++;
+                } else if (index < ast.tokens.size() && ast.tokens[index].type != RP) {
+                    display_err("Expected ',' or ')' in argument list for function: " + tok.value);
+                    return nullptr;
+                }
+            }
+            if (index < ast.tokens.size() && ast.tokens[index].type == RP) {
+                index++;
+            } else {
+                display_err("Expected ')' after function arguments for function: " + tok.value);
+                return nullptr;
+            }
+
+            
+            node = call_node; // replace node with call node
+            if (function_call_depth_amount > 1) {  // <-- function call found within params has to not be garbage collected
+                node->string_content = "unused_function_true";
+            }//else if(function_call_depth_amount==1){ // <-- avoid from beeing called unused
+                //node->string_content = "used_function_at_root";
+           // }
+            function_call_depth_amount--;
+        }
 
         while (index < ast.tokens.size() && ast.tokens[index].value == "[") {
             index++; 
@@ -183,6 +222,7 @@ AST_NODE* parse_primary(AST& ast, int& index) {
                     return nullptr;
                 }
                 node->children.push_back(while_block);
+                index++; // skip 'end'
             }else{
                 display_err("Expected 'do' after while condition");
                 return nullptr;
@@ -243,44 +283,87 @@ AST_NODE* parse_primary(AST& ast, int& index) {
             index++; // skip 'end'
 
             node->children.push_back(block_node);
-        }else if(tok.value=="bytecode_seq"){
-
-            node = create_node(AST_BUILTIN_BYTECODE_NODE,"BYTECODE_SEQ");
+        }else if(tok.value == "func"){
+            
+            node = create_node(AST_FUNCTION_DECL, "FUNC_DECL");
             index++;
-            if(index<ast.tokens.size()&&ast.tokens[index].value!="do"){
-                display_err("Expected 'do' after bytecode sequence");
+
+            if (index < ast.tokens.size() && ast.tokens[index].type == IDENTIFIER) {
+                node->value = ast.tokens[index].value;
+                index++;
+            } else {
+                display_err("Expected identifier after 'func' keyword");
                 return nullptr;
             }
 
-            index++;
+            if (index < ast.tokens.size() && ast.tokens[index].type == LP) {
+                index++;
+            } else {
+                display_err("Expected '(' after function name: " + node->value);
+                return nullptr;
+            }
+            AST_NODE* params_node = create_node(AST_FUNC_PARAMS, "PARAMS");
 
-            AST_NODE* block_node = create_node(AST_BLOCK_START,"don't add");
-            std::string bytecode_seq_value = "";
-
-            while(ast.tokens[index].value!="end"&&index<ast.tokens.size()){
-                
-                if(ast.tokens[index].value=="newline"){index++;continue;}
-                if(ast.tokens[index].type==TOKEN_T::KEYWORD){
-                    display_err("Only bytecode keywords allowed in bytecode sequence");
+            while (index < ast.tokens.size() && ast.tokens[index].type != RP) {
+                if (ast.tokens[index].type == IDENTIFIER) {
+                    AST_NODE* param = create_node(AST_IDENTIFIER, ast.tokens[index].value);
+                    params_node->children.push_back(param);
+                    index++;
+                } else if (ast.tokens[index].type == COMMA) {
+                    index++;
+                } else {
+                    display_err("Unexpected token in parameter list for function: " + node->value);
                     return nullptr;
                 }
-
-                bytecode_seq_value+=ast.tokens[index].value; 
-                bytecode_seq_value+="\n";
-                index++;
             }
 
-            //block_node->string_content.emplace();
-            block_node->string_content=bytecode_seq_value;
-            node->children.push_back(block_node);
-            
-            if(index == ast.tokens.size() || ast.tokens[index].value != "end"){
-                display_err("Expected 'end' after for block");
+            if (index < ast.tokens.size() && ast.tokens[index].type == RP) {
+                index++;
+            } else {
+                display_err("Expected ')' after parameter list in function: " + node->value);
+                return nullptr;
+            }
+
+            node->children.push_back(params_node);
+
+            if (index < ast.tokens.size() && ast.tokens[index].value == "do") {
+                index++;
+            } else {
+                display_err("Expected 'do' after function header: " + node->value);
+                return nullptr;
+            }
+
+            AST_NODE* body_node = create_node(AST_BLOCK_START, "FUNC_BODY");
+            while (index < ast.tokens.size() && ast.tokens[index].value != "end") {
+                AST_NODE* stmt = parse_comparison(ast, index);
+                if (stmt) body_node->children.push_back(stmt);
+                else index++; 
+            }
+
+            if (index >= ast.tokens.size() || ast.tokens[index].value != "end") {
+                display_err("Expected 'end' to close function: " + node->value);
                 return nullptr;
             }
 
             index++;
+
+            node->children.push_back(body_node);
+        }else if(tok.value == "return"){
+            node = create_node(AST_RETURN, "RETURN");
+            index++;
+
+            if(index >= ast.tokens.size() || 
+            ast.tokens[index].type == NEWLINE || 
+            ast.tokens[index].value == "end") 
+            {
+                return node;
+            }
+
+            AST_NODE* return_expr = parse_comparison(ast, index);
+            node->children.push_back(return_expr);
         }
+
+
 
         } else {
             node = create_node(AST_NONE, "NONE");
@@ -359,9 +442,13 @@ std::string node_type_to_string(NODE_TYPE& type) {
     switch (type) {
         case AST_VAR_ACCESS_AT: return "ACCESS_AT";
         case AST_TOP: return "TOP";
+        case AST_FUNC_CALL: return "FUNCTION_CALL";
         case AST_UN_OP: return "UNARY_OP";
         case AST_BIN_OP: return "BINARY_OP";
         case AST_INT: return "INT";
+        case AST_FUNCTION_DECL: return "FUNCTION_DECL";
+        case AST_FUNC_PARAMS: return "PARAMS";
+        case AST_RETURN: return "RETURN";
         case AST_STRING: return "STRING";
         case AST_FLOAT: return "FLOAT";
         case AST_IDENTIFIER: return "IDENTIFIER";
@@ -399,38 +486,3 @@ void print_ast(AST& ast) {
 
 
 
-/*
-
-x=10
-
-while x > 0 do 
-    x=x-1
-    if x == 5 do 
-        goto eol 
-    end 
-end
-
-::eol::
-
-// this is a comment
-
-fun main() do 
-    
-    
-    return something 
-end
-
-for i , 10 do 
-
-end 
-
-if x == 0 do  
-
-else 
-
-end
-
-str = "hi there" // by defaut size is 256
-resize(str,9) // resize
-
-*/
