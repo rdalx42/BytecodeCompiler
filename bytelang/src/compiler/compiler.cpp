@@ -10,6 +10,8 @@ COMPILER init(AST& ast, LEXER& lex) {
     comp.lex.pre_calc_stack.resize(MAX_VALS);
     comp.lex.pre_calc_stack.reserve(MAX_VALS);
     comp.lex.declared_variables.reserve(MAX_VALS);
+    comp.lex.unused_load_function_indicies_info.resize(MAX_VALS);
+    //comp.function_call_stack.memory=&comp.memory;
 
 
     comp.memory.fast_operation_temporary_slots.fots_str.value =  new char[DEFAULT_STRING_LEN];
@@ -27,123 +29,36 @@ COMPILER init(AST& ast, LEXER& lex) {
 Generate bytecode && precompute builtin control flow structures
 */
 
-void print_bytecode(COMPILER& comp) {
-    int indent = 0;
+bool in_return=false;
 
-    std::cout << "\n=========== VEXA BYTECODE ===========\n";
+void pre_init_data(COMPILER& comp){
+    // PRE INIT DATA
+    comp.preloaded_strings_per_token.resize(comp.lex.tokens.size());
 
-    for (size_t i = 0; i < comp.lex.tokens.size(); ++i) {
+    for (size_t i = 0; i < comp.lex.tokens.size(); i++) {
         TOKEN& tok = comp.lex.tokens[i];
 
-        if (tok.type == TOKEN_T::BYTECODE_DEL_BLOCK) {
-            indent--;
-        }
+        if (tok.type == STRING) {
+            if (i > 0 && comp.lex.tokens[i - 1].type == BYTECODE_PUSH) {
+                FAST_STRING_COMPONENT* fsc = new FAST_STRING_COMPONENT();
+                fsc->value = strdup(tok.str_val->c_str());
+                fsc->val_lenght = strlen(fsc->value) + 1;
 
-        for (int j = 0; j < indent; ++j) {
-            std::cout << "  ";
-        }
-
-        switch (tok.type) {
-            case TOKEN_T::BYTECODE_PUSH:
-                std::cout << i << ": PUSH " << comp.lex.tokens[i + 1].value << "\n";
-                break;
-
-            case TOKEN_T::BYTECODE_LOAD:
-                std::cout << i << ": LOAD " << comp.lex.tokens[i + 1].value << "\n";
-                break;
-
-            case TOKEN_T::BYTECODE_STORE:
-                std::cout << i << ": STORE " << comp.lex.tokens[i + 1].value << "\n";
-                break;
-
-            case TOKEN_T::BYTECODE_ADD:    std::cout << i << ": ADD\n"; break;
-            case TOKEN_T::BYTECODE_SUB:    std::cout << i << ": SUB\n"; break;
-            case TOKEN_T::BYTECODE_MUL:    std::cout << i << ": MUL\n"; break;
-            case TOKEN_T::BYTECODE_DIV:    std::cout << i << ": DIV\n"; break;
-
-            case TOKEN_T::BYTECODE_NEG:        std::cout << i << ": NEG\n"; break;
-            case TOKEN_T::BYTECODE_ADD_NEG:    std::cout << i << ": ADD_NEG\n"; break;
-            case TOKEN_T::BYTECODE_NOT:        std::cout << i << ": NOT\n"; break;
-
-            case TOKEN_T::BYTECODE_EQ:     std::cout << i << ": EQ\n"; break;
-            case TOKEN_T::BYTECODE_NOTEQ:  std::cout << i << ": NOTEQ\n"; break;
-            case TOKEN_T::BYTECODE_GT:     std::cout << i << ": GT\n"; break;
-            case TOKEN_T::BYTECODE_GTE:    std::cout << i << ": GTE\n"; break;
-            case TOKEN_T::BYTECODE_LT:     std::cout << i << ": LT\n"; break;
-            case TOKEN_T::BYTECODE_LTE:    std::cout << i << ": LTE\n"; break;
-
-            case TOKEN_T::BYTECODE_LOAD_AT:
-                std::cout << i << ": LOAD_AT " << comp.lex.tokens[i + 1].value << "\n";
-                break;
-
-            case TOKEN_T::BYTECODE_SET_AT:
-                std::cout << i << ": SET_AT " << comp.lex.tokens[i + 1].value << "\n";
-                break;
-
-            case TOKEN_T::BYTECODE_MAKE_BLOCK:
-                std::cout << i << ": BLOCK_START\n";
-                indent++;
-                break;
-
-            case TOKEN_T::BYTECODE_DEL_BLOCK:
-                std::cout << i << ": BLOCK_END\n";
-                break;
-
-            case TOKEN_T::BYTECODE_GOTO:
-                if (tok.jump_pos.has_value())
-                    std::cout << i << ": GOTO -> " << *tok.jump_pos << "\n";
-                else
-                    std::cout << i << ": GOTO (unresolved)\n";
-                break;
-
-            case TOKEN_T::BYTECODE_GOTO_LABEL:
-                std::cout << i << ": LABEL " << tok.value << "\n";
-                break;
-
-            case TOKEN_T::BYTECODE_GOTO_IF_ZERO:
-                if (tok.jump_pos.has_value())
-                    std::cout << i << ": GOTOZERO -> " << *tok.jump_pos << "\n";
-                else
-                    std::cout << i << ": GOTOZERO (unresolved)\n";
-                break;
-
-            case TOKEN_T::BYTECODE_RET:
-                std::cout << i << ": RET\n";
-                break;
-
-            case TOKEN_T::BYTECODE_SAFETY:
-                std::cout << i << ": SAFETY_LABEL\n";
-                break;
-
-            case TOKEN_T::BYTECODE_TOP:
-                std::cout << i << ": TOP (print top of stack)\n";
-                break;
-
-            case TOKEN_T::BYTECODE_POP:
-                std::cout << i << ": POP\n";
-                break;
-
-            case TOKEN_T::BYTECODE_POP_ALL:
-                std::cout << i << ": POP_ALL\n";
-                break;
-
-            case TOKEN_T::BYTECODE_CLEANUP:
-                std::cout << i << ": CLEANUP\n";
-                break;
-
-            
-            default:
-                std::cout << i << ": " << tok.value << "\n";
-                break;
+                comp.preloaded_strings_per_token[i] = *fsc;
+            }
         }
     }
 
-    std::cout << "=========== END BYTECODE ===========\n";
+
+    //--
 }
 
 void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
     
+    
+
     static int builtin_goto_counter = 0;
+    static std::string current_function_name = ""; // so we can track where to return
     
     if (!nd) return;
 
@@ -183,6 +98,114 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
         case AST_VAR_ACCESS:
             comp.bytecode += "LOAD " + nd->value + "\n";
             break;
+
+        case AST_FUNCTION_DECL: {
+
+            if(current_function_name != ""){
+                display_err("Nested functions aren't supported");
+                return;
+            }
+
+            
+
+            current_function_name = nd->value;
+
+            // Function declaration label
+            comp.bytecode += ">FUNCTION_DECL_LABEL_" + nd->value + "\n";
+            comp.bytecode += "SAFETY_LABEL\n";
+
+            // Function start label
+            comp.bytecode += ">FUNCTION_START_LABEL_" + nd->value + "\n";
+            comp.bytecode += "SAFETY_LABEL\n";
+
+            // Default return value
+            comp.bytecode += "PUSH 0\n";
+            comp.bytecode += "STORE " + nd->value + "\n"; // store return value
+
+            // Store parameters at function root scope (outside block)
+            if(!nd->children.empty() && !nd->children[0]->children.empty()){
+                for(int j = nd->children[0]->children.size() - 1; j >= 0; j--){
+                    comp.bytecode += "STORE " + nd->children[0]->children[j]->value + "\n";
+                }
+            }
+
+            // Start the body block
+            comp.bytecode += "BLOCK_START\n";
+
+            // Generate function body
+            if(nd->children.size() > 1){
+                AST_NODE* body = nd->children[1];
+                for(AST_NODE* stmt : body->children){
+                    generate_bytecode(comp, stmt);
+                }
+            }
+
+            // End body block
+            comp.bytecode += "BLOCK_END\n";
+
+            // Return label
+            comp.bytecode += ">FUNCTION_RETURN_LABEL_" + nd->value + "\n";
+            comp.bytecode += "SAFETY_LABEL\n";
+            comp.bytecode += "RET\n";
+
+            // Function declaration end
+            comp.bytecode += ">FUNCTION_DECL_END_" + nd->value + "\n";
+            comp.bytecode += "SAFETY_LABEL\n";
+
+            current_function_name = "";
+            return;
+        }
+
+        case AST_RETURN:{
+            
+            in_return=true;
+            if(current_function_name == ""){
+                display_err("Can't return value outside of a function");
+                return;
+            }
+
+            if(!nd->children.empty()){
+                generate_bytecode(comp,nd->children[0]);
+                comp.bytecode+="STORE " + current_function_name; // store current function name
+                comp.bytecode+="\n";
+                comp.bytecode+="GOTO_FUNCTION_RETURN_LABEL_"+current_function_name; // goto return endpoint (scope managing is done by the compiler already)
+                comp.bytecode+="\n";
+                //std::cout<<"adding block end\n";
+            }else{
+                comp.bytecode+="PUSH 0\n"; // <-- set to default 0 value
+                comp.bytecode+="STORE " + current_function_name; 
+                comp.bytecode+="\n";
+                comp.bytecode+="GOTO_FUNCTION_RETURN_LABEL_"+current_function_name;
+                comp.bytecode+="\n";
+            }
+
+            in_return = false;
+
+            return;
+        }
+
+        case AST_FUNC_CALL: {
+
+            if(in_return==false && nd->value == current_function_name){
+                display_err("Cannot Recurse function in it's body if not in a return statement");
+                return;
+            }
+            
+            for (AST_NODE* arg : nd->children) {
+                generate_bytecode(comp, arg);  // argument value ends up on stack
+            }
+            comp.bytecode += "GOTO_FUNCTION_START_LABEL_" + nd->value + "\n";
+            
+           if(nd->string_content.value_or("") == "unused_function_true") {
+                comp.lex.unused_load_function_indicies_info.push_back(true);
+            } else {
+                comp.lex.unused_load_function_indicies_info.push_back(false);
+            }
+
+
+            comp.bytecode+="LOAD " + nd->value + "\n";
+            return;
+        }
 
         case AST_VAR_ASSIGN_AT: {
             AST_NODE* var_access = nd->children[0];
@@ -243,46 +266,36 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
             return;
         }
 
-        case AST_BUILTIN_BYTECODE_NODE:{
-            
-            comp.bytecode+="// bytecode sequence start \n";
-            comp.bytecode+="BLOCK_START\n";
-            if(!nd->children[0]->string_content.has_value()){
-                display_err("Invalid bytecode input");
-                return;
-            }
-
-            comp.bytecode+=nd->children[0]->string_content.value();
-
-            comp.bytecode+="// bytecode sequence end \n";
-            break;
-        }
-
-        case AST_WHILE:{
-
+       
+        case AST_WHILE: {
             int this_while = builtin_goto_counter++;
             AST_NODE* condition = nd->children[0];
             AST_NODE* body = nd->children[1];
 
             std::string start_label = "BUILTIN_WHILE_START_" + std::to_string(this_while);
-            std::string end_label = "BUILTIN_WHILE_END_" + std::to_string(this_while);
+            std::string end_label   = "BUILTIN_WHILE_END_" + std::to_string(this_while);
 
             comp.bytecode += ">" + start_label + "\n";
             comp.bytecode += "SAFETY_LABEL\n";
-            
+
             generate_bytecode(comp, condition);
-            comp.bytecode+="BLOCK_START\n";
+
             comp.bytecode += "GOTOZERO_" + end_label + "\n";
 
+            comp.bytecode += "BLOCK_START\n";
             generate_bytecode(comp, body);
-            comp.bytecode += "GOTO_" + start_label + "\n";
-              
+            comp.bytecode += "BLOCK_END\n";
 
+            
+            comp.bytecode += "GOTO_" + start_label + "\n";
+
+            
             comp.bytecode += ">" + end_label + "\n";
             comp.bytecode += "SAFETY_LABEL\n";
-            
+
             return;
         }
+
 
         case AST_FOR: {
             int this_for = builtin_goto_counter++;
@@ -428,6 +441,121 @@ void print_value(const VALUE& val) {
     }
 }
 
+void print_bytecode(COMPILER& comp) {
+    int indent = 0;
+
+    std::cout << "\n=========== VEXA BYTECODE ===========\n";
+
+    for (size_t i = 0; i < comp.lex.tokens.size(); ++i) {
+        TOKEN& tok = comp.lex.tokens[i];
+
+        if (tok.type == TOKEN_T::BYTECODE_DEL_BLOCK) {
+            indent--;
+        }
+
+        for (int j = 0; j < indent; ++j) {
+            std::cout << "    ";
+        }
+
+        switch (tok.type) {
+            case TOKEN_T::BYTECODE_PUSH:
+                std::cout << i << ": PUSH " << comp.lex.tokens[i + 1].value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_LOAD:
+                std::cout << i << ": LOAD " << comp.lex.tokens[i + 1].value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_STORE:
+                std::cout << i << ": STORE " << comp.lex.tokens[i + 1].value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_ADD:    std::cout << i << ": ADD\n"; break;
+            case TOKEN_T::BYTECODE_SUB:    std::cout << i << ": SUB\n"; break;
+            case TOKEN_T::BYTECODE_MUL:    std::cout << i << ": MUL\n"; break;
+            case TOKEN_T::BYTECODE_DIV:    std::cout << i << ": DIV\n"; break;
+
+            case TOKEN_T::BYTECODE_NEG:        std::cout << i << ": NEG\n"; break;
+            case TOKEN_T::BYTECODE_ADD_NEG:    std::cout << i << ": ADD_NEG\n"; break;
+            case TOKEN_T::BYTECODE_NOT:        std::cout << i << ": NOT\n"; break;
+
+            case TOKEN_T::BYTECODE_EQ:     std::cout << i << ": EQ\n"; break;
+            case TOKEN_T::BYTECODE_NOTEQ:  std::cout << i << ": NOTEQ\n"; break;
+            case TOKEN_T::BYTECODE_GT:     std::cout << i << ": GT\n"; break;
+            case TOKEN_T::BYTECODE_GTE:    std::cout << i << ": GTE\n"; break;
+            case TOKEN_T::BYTECODE_LT:     std::cout << i << ": LT\n"; break;
+            case TOKEN_T::BYTECODE_LTE:    std::cout << i << ": LTE\n"; break;
+
+            case TOKEN_T::BYTECODE_LOAD_AT:
+                std::cout << i << ": LOAD_AT " << comp.lex.tokens[i + 1].value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_SET_AT:
+                std::cout << i << ": SET_AT " << comp.lex.tokens[i + 1].value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_MAKE_BLOCK:
+                std::cout << i << ": BLOCK_START\n";
+                indent++;
+                break;
+
+            case TOKEN_T::BYTECODE_DEL_BLOCK:
+                std::cout << i << ": BLOCK_END\n";
+                break;
+
+            case TOKEN_T::BYTECODE_GOTO:
+                if (tok.jump_pos.has_value())
+                    std::cout << i << ": GOTO -> " << *tok.jump_pos << "\n";
+                else
+                    std::cout << i << ": GOTO (unresolved)\n";
+                break;
+
+            case TOKEN_T::BYTECODE_GOTO_LABEL:
+                std::cout << i << ": LABEL " << tok.value << "\n";
+                break;
+
+            case TOKEN_T::BYTECODE_GOTO_IF_ZERO:
+                if (tok.jump_pos.has_value())
+                    std::cout << i << ": GOTOZERO -> " << *tok.jump_pos << "\n";
+                else
+                    std::cout << i << ": GOTOZERO (unresolved)\n";
+                break;
+
+            case TOKEN_T::BYTECODE_RET:
+                std::cout << i << ": RET\n";
+                break;
+
+            case TOKEN_T::BYTECODE_SAFETY:
+                std::cout << i << ": SAFETY_LABEL\n";
+                break;
+
+            case TOKEN_T::BYTECODE_TOP:
+                std::cout << i << ": TOP (print top of stack)\n";
+                break;
+
+            case TOKEN_T::BYTECODE_POP:
+                std::cout << i << ": POP\n";
+                break;
+
+            case TOKEN_T::BYTECODE_POP_ALL:
+                std::cout << i << ": POP_ALL\n";
+                break;
+
+            case TOKEN_T::BYTECODE_CLEANUP:
+                std::cout << i << ": CLEANUP\n";
+                break;
+
+            
+            default:
+                std::cout << i << ": " << tok.value << "\n";
+                break;
+        }
+    }
+
+    std::cout << "=========== END BYTECODE ===========\n";
+}
+
+
 void compile_ast_to_bytecode(COMPILER& comp) {
     generate_bytecode(comp, comp.ast.root);
 }
@@ -521,9 +649,13 @@ void compile(COMPILER& comp) {
 
                     case TOKEN_T::STRING:
                        // if (next.str_val.has_value()) {
-                            val.type = STR_VAL;
-                            val.str_val = new FAST_STRING_COMPONENT();
-                            val.str_val->value = strdup(next.str_val->c_str());
+                            //val.str_val = new FAST_STRING_COMPONENT();
+                           // *val.str_val = comp.preloaded_strings_per_token[i];
+
+
+                             val.type = STR_VAL;
+                             val.str_val = new FAST_STRING_COMPONENT();
+                             val.str_val->value = comp.preloaded_strings_per_token[i+1].value;
                             
                      //   } else {
                      //       display_err("Invalid string value for PUSH");
@@ -532,6 +664,7 @@ void compile(COMPILER& comp) {
                         break;
 
                     case TOKEN_T::IDENTIFIER:
+                        
                         val = comp.memory.get(tok);
                         break;
 
@@ -646,6 +779,14 @@ void compile(COMPILER& comp) {
                 //if (i + 1 < comp.lex.tokens.size()) {
                    // std::string var_name = comp.lex.tokens[i + 1].value;
                     //if (comp.memory.exists(var_name)){
+                       // std::cout<<"loading: "<<comp.lex.tokens[i+1].value<<"\n";
+                        
+                        if (tok.used_function==false && tok.is_function == true) {
+                          //  std::cout<<"not used skip\n";
+                            i += 2;
+                            break;
+                        }
+                        
                         comp.memory.operation_stack.push(comp.memory.get(comp.lex.tokens[i]));
                      //   print_value(comp.memory.get(var_name));  
                         
@@ -656,30 +797,63 @@ void compile(COMPILER& comp) {
                 break;
             }
 
-            case TOKEN_T::BYTECODE_GOTO: {
-            //    std::cout<<"goto\n";
+            case TOKEN_T::BYTECODE_RET: {
+                if (comp.function_call_stack.empty()) {
+                    display_err("Can't return when call stack is empty");
+                    return;
+                }
+
+                // Get the top function frame
+                FUNCTION_FRAME frame = comp.function_call_stack.top_frame();
+
+                // Garbage collect all values pushed by this function call
+                while (comp.memory.operation_stack.top > frame.stack_mark) {
+                    VALUE& val = comp.memory.operation_stack.peek();
+                    val.clear_val();
+                    comp.memory.operation_stack.pop_no_return();
+                }
+
+                // Jump back to the caller
+                i = frame.retpos;
+
+                // Pop the frame
+                comp.function_call_stack.pop();
+                break;
+            }
+
+
+            case TOKEN_T::BYTECODE_GOTO:{
                 
-                    int pos = *tok.jump_pos; //
-                    int target_depth = *tok.scope_level;
-                   // std::cout<<comp.memory.current_stack_amount<<"  "<<target_depth<<"\n";
-                    while (comp.memory.current_stack_amount > target_depth) { // delete scopes
+                int pos = *tok.jump_pos;
+
+                if(tok.goto_check_union.is_function_start == true){ // recursive function call: don't delete root scope at 0
+                    while(comp.memory.current_stack_amount>1){
                         comp.memory.del_stack();
                         comp.memory.current_stack_amount--;
                     }
 
-                    i = pos+1;  // jump directly to label
-                   
-                    break;
-                
-                i++;
+                    comp.function_call_stack.push(i+1,comp.memory.operation_stack.top);
+                }else{
+                    int target_depth = *tok.scope_level;
+                    while(comp.memory.current_stack_amount>target_depth){
+                        comp.memory.del_stack();
+                        comp.memory.current_stack_amount--;
+                    }
+                }
+
+                i=pos+1;
                 break;
-            }   
+            }
 
             case TOKEN_T::BYTECODE_SAFETY:
                 i++;
                 break;
 
             case TOKEN_T::BYTECODE_GOTO_LABEL:
+                if(tok.goto_check_union.pair_token_jump_pos){
+                    i=tok.goto_check_union.pair_token_jump_pos+1;
+                    break;
+                }
                 i++; // just skip the label token
                 break;
 
@@ -887,4 +1061,3 @@ void compile(COMPILER& comp) {
         }
     }
 }
-
