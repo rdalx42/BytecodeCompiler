@@ -52,6 +52,7 @@ void doshell(SHELL& sh) {
 
     
     print_bytecode(compiler);
+    pre_init_data(compiler);
 
     time_t start_time = clock();
     size_t total_bytes_allocated_before_execution = total_bytes_allocated;
