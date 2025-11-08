@@ -1,6 +1,6 @@
 # Vexa 1.0 
 
-<h4> A <i>small</i> and <i>compact</i>, <i>lightweight</i> on runtime and quite <i>fast</i> home-made VM programming language </h4>
+<h4> A <i>small</i> and <i>compact</i>, <i>lightweight</i> and <i>fast</i> home-made VM programming language </h4>
 <i> made in around ~2.1k LOC, quite fast in hotloops</i><br>
 <br>
 
