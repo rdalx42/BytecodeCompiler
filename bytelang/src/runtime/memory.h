@@ -13,7 +13,7 @@
 #define MAX_VALS 1024
 #define DEFAULT_STRING_LEN 256      // default string length
 #define MAX_VECTOR_SIZE 128     // max elements in a vector
-#define MAX_CALL_STACK 128
+#define MAX_CALL_STACK 100000
 
 
 enum VAL_TYPE {
@@ -22,33 +22,57 @@ enum VAL_TYPE {
     STR_VAL,
     VEC_VAL
 };
+struct FUNCTION_FRAME {
+    int retpos = 0;      // Return position in the bytecode
+    size_t stack_mark;   // Operation stack top when function was called
+};
 
-struct CALL_STACK{
+struct CALL_STACK {
+    FUNCTION_FRAME frames[MAX_CALL_STACK];
+    unsigned int top = 0;
+    int prevret_pos = -1;
+   // MEMORY* memory=nullptr;
+    
+    void push(const unsigned int& return_pos, size_t current_stack_top) {
+        
+        if(top > 0 && frames[top-1].retpos == return_pos){
+            // mem.del_stack();
+            frames[top].retpos=return_pos;
+            frames[top].stack_mark = current_stack_top;
+            return;
+        }
 
-   // V <-- represents the return position of function
-    int frames[MAX_CALL_STACK]; // we store them in frames, FIFO -> the first-out value will always be the right value, hopefully this won't cause too many issues with the recursion logic
-    unsigned int top=0;
 
-    void push(const unsigned int& return_pos) {
-        std::cout<<"pushed: "<<return_pos<<"\n";
         if (top >= MAX_CALL_STACK) {
             display_err("Function call stack overflow");
+            return;
         }
-        frames[top++] = return_pos;
+
+        frames[top].retpos = return_pos;
+        frames[top].stack_mark = current_stack_top;
+        top++;
     }
+
 
     void pop() {
         if (top == 0) {
             display_err("Function call stack underflow");
+            return;
         }
         --top;
     }
-
-    int& top_frame() {
+    FUNCTION_FRAME& top_frame() {
+        if (top == 0) {
+            display_err("Call stack is empty");
+            static FUNCTION_FRAME dummy{};
+            return dummy;
+        }
         return frames[top - 1];
     }
 
-    bool empty() const { return top == 0; }
+    bool empty() const {
+        return top == 0;
+    }
 };
 
 struct FAST_STRING_COMPONENT{
@@ -67,7 +91,7 @@ struct FAST_STRING_COMPONENT{
     void set_at(const int& index, const char& char_val){
         
         if(index<0||index>val_lenght){
-            display_err("Can't modify string value at position greated than size!");
+            display_err("Can't modify string value at position that doesn't fit in size range!");
             return;
         }
 
@@ -149,6 +173,8 @@ struct VALUE {
 
 };
 
+
+
 struct vexa_stack {
     VALUE* data;
     size_t capacity;
@@ -166,6 +192,45 @@ struct vexa_stack {
         top = 0;
        
     }
+
+    inline void pop_all_below_top() {
+    
+        for (size_t i = 0; i < top - 1; i++) {
+            VALUE& val = data[i];
+
+            
+            switch(val.type) {
+                case STR_VAL:
+                    if(val.str_val) {
+                        if(val.str_val->value) free(val.str_val->value);
+                        delete val.str_val;
+                        val.str_val = nullptr;
+                    }
+                    break;
+
+                case VEC_VAL:
+                    if(val.arr_val) {
+                        val.arr_val->clear_arr();
+                        delete val.arr_val;
+                        val.arr_val = nullptr;
+                    }
+                    break;
+
+                default: break; 
+            }
+            
+            val.type = INT_VAL; 
+        }
+
+        
+        if (top > 0) {
+            data[0] = data[top - 1];
+            top = 1;
+        } else {
+            top = 0;
+        }
+    }
+
 
     inline void clear_stack(){
         free(data);
@@ -196,6 +261,7 @@ struct FAST_OPERATION_TEMPORARY_SLOTS{
 };
 
 struct MEMORY {
+    
 
     FAST_OPERATION_TEMPORARY_SLOTS fast_operation_temporary_slots;
     
@@ -204,34 +270,41 @@ struct MEMORY {
 
     STACK_VALUE stack_vals[MAX_STACK_VALS];
     size_t stack_vals_size = 0;
-
+    
     vexa_stack operation_stack;
     VALUE values[MAX_VALS];
 
    inline void set(const TOKEN& tok, VALUE& val) {
-        if (tok.var_id.value() == -1) {
-            display_err("Invalid variable ID for setting value");
-            return;
-        }
-
-        // free old string
-       /// std::cout<<"stored: "<<tok.var_id.value()<<'\n';
-        VALUE& old_val = values[tok.var_id.value() - 1]; 
-        if (old_val.type == STR_VAL && old_val.str_val) {
-            if (old_val.str_val->value) free(old_val.str_val->value);
-            delete old_val.str_val;
-            old_val.str_val = nullptr;
-        }
-
-        if (tok.is_new_val.has_value() && tok.is_new_val.value()) {
-            stack_vals[stack_vals_size].id = current_stack_amount;
-            stack_vals[stack_vals_size].var_id = tok.var_id.value();
-            stack_vals_size++;
-            length_of_values++;
-        }
-
-        values[tok.var_id.value() - 1] = val;
+    if (tok.var_id.value() == -1) {
+        display_err("Invalid variable ID for setting value");
+        return;
     }
+
+    // Free old value if needed
+    VALUE& old_val = values[tok.var_id.value() - 1]; 
+    old_val.clear_val(); // already frees old string/vector
+
+    // Deep copy string values
+    if (val.type == STR_VAL && val.str_val != nullptr) {
+        FAST_STRING_COMPONENT* new_str = new FAST_STRING_COMPONENT();
+        new_str->val_lenght = val.str_val->val_lenght;
+        new_str->value = strdup(val.str_val->value); // deep copy the string
+        val.str_val = new_str;
+    }
+
+    // Save the new value
+    values[tok.var_id.value() - 1] = val;
+
+    if (tok.is_new_val.has_value() && tok.is_new_val.value()) {
+        stack_vals[stack_vals_size].id = current_stack_amount;
+        stack_vals[stack_vals_size].var_id = tok.var_id.value();
+        stack_vals_size++;
+        length_of_values++;
+    }
+}
+
+    
+
 
 
     inline void delete_val(const int& id) {
