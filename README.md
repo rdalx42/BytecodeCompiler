@@ -9,6 +9,7 @@
 > This is Vexa 1.0, keep in mind that everything is subject to change.<br>
 > Error handling is currently a bit of a hit or miss.<br>
 > Everything is in early stages and there are more features to come!
+> Currently there a couple of bugs with the function implementation but Im working on dolving them
 
 <br>
 
@@ -91,7 +92,7 @@ goto ::hi
 <h4>
     Functions in Vexa have a simple design, a function can  <br>
     only recurse itself if called in return statement, speaking of which <br>
-    a function can't be returned in a binary operation, empty do...end scopes can't be amde within functions
+    a function can't be returned in a binary operation, empty do...end scopes can't be made within functions
 </h4>
 
 ```Pascal
