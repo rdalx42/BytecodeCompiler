@@ -10,6 +10,7 @@ struct ERROR{
     std::string message = "";
 };
 
-void display_err(std::string message);
+void display_err(const std::string& message);
+void display_non_fatal_err(const std::string& message);
 
 #endif 
