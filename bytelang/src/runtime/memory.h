@@ -23,6 +23,7 @@ enum VAL_TYPE {
     VEC_VAL
 };
 struct FUNCTION_FRAME {
+    
     int retpos = 0;      // Return position in the bytecode
     size_t stack_mark;   // Operation stack top when function was called
 };
