@@ -96,7 +96,7 @@ goto ::hi
 <ul>
     <li>Functions cannot be nested inside other functions.</li>
     <li>Functions can't recurse themselves inside their body without a return statement</li>
-    <l1>Raw function calls cannot be used in binary operations (placeholder name required )</l1>
+    <li>Raw function calls cannot be used in binary operations (placeholder name required)</li>
 </ul>
 
 ```Pascal
