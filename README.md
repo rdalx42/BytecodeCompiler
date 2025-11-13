@@ -20,9 +20,9 @@
 ```Pascal
 // Variables in Vexa //
 
-integer_variable = 50 
+int_var = 50 
 
-float_variable = 21.42 + 42.11/533 + (5+integrer_variable)
+float_variable = 21.42 + 42.11/533 + (5+int_var)
 
 string_variable = "hello_world"
 
