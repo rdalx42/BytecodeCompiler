@@ -1,78 +1,16 @@
-// example of capabilities
 
-do // scopes
-    5
-    top
+// Template script
+
+version = "Vexa 1.1.0"
+
+func display() do 
+    return version + "; welcome!"
+
 end
 
-// variables
-x = 10 
-exited = 0
-
-// string variables
-greeting = "hi " // <-- by default the string lenght is 256, however it is adjustable (currently only in source code right now)
-greeting[1]=greeting[0] // <-- this is how we index stuff
-username = "idk"
-message = greeting + ", " + username  // string concatenation
-message
-top  // push result of string concatenation to stack
-
-// while loop
-while x < 100 do 
-    x = x + 1
-    x // this just sets the top value of the stack
-
-    if x == 50 do  // if statements 
-        exited = 1
-        goto ::loop_break  // goto statements
-    end
-    top
+func main() do 
+   display()
+   top
 end
 
-::loop_break
-
-if exited == 1 do 
-    "exited early"
-    top
-else // else statement
-    5
-    top
-end
-
-// string manipulation
-welcome_msg = "Welcome "
-user = "idkwho"
-welcome_msg = welcome_msg + user
-welcome_msg
-top
-
-// for loops
-for i = 0, 5 do
-    
-    i
-    top
-end
-
-
-for i , 2 do // < -- by default i will be zero if nothing is declared
-    for j = 0, 2 do
-        x = i * 10 + j // nested for loopa
-        x
-        top
-    end
-end
-
-
-
-// unary operations 
-
-untest = 5
-untest = !x 
-untest 
-top 
-untest = -(5+5)
-untest 
-top 
-untest = +(-5)
-untest 
-top
+main()
