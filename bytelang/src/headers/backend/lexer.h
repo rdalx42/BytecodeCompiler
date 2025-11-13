@@ -13,6 +13,7 @@ extern const std::string characters;
 
 extern const std::vector<std::string> keywords;
 extern const std::vector<std::string> bytecode_keywords;
+extern const std::vector<std::string> builtins;
 
 enum TOKEN_T{
 
@@ -74,6 +75,7 @@ struct TOKEN {
     std::optional<int>jump_pos;
     bool used_function=false; // if false we don't add to memory, this we'll also be toggled via the AST, since a function won't be unused if passed as a parameter
     bool is_function=false;
+  //  int dispatch_index = -1;
    // std::optional<size_t>pair_token_jump_pos;
     std::optional<int>scope_level;
     std::optional<int>var_id; // for STORE and LOAD 
@@ -89,6 +91,7 @@ struct TOKEN {
     }goto_check_union;
 
 };
+
 
 struct SCOPE_COUNT{
     int scope_level=0;
@@ -125,13 +128,13 @@ struct LEXER{
     LEXER(const std::string& c) : content(c), pos(0) {}
 };
 
-char peek(LEXER& lex,int&index);
+int get_dispatch_index(const TOKEN_T& type);
+//char peek(LEXER& lex,int&index);
 
 void doidentifier(LEXER& lexer, int& index);
 void donum(LEXER& lexer, int& index);
 void dolex(LEXER&lexer);
 void dostring(LEXER& lexer, int& index);
-
 void display_lex(LEXER& lexer);
 
 #endif
