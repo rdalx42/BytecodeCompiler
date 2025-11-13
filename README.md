@@ -116,3 +116,20 @@ end
 C = Count(1)
 C top
 ```
+
+# How to compile
+
+Make sure you have a C++20+ compiler installed (g++ -as it was mainly tested on it).
+
+## Windows
+```bash
+cd src  # go into main directory
+g++ runtime/*.cpp compiler/*.cpp backend/*.cpp -O3 -ffast-math -march=native -Iinclude -o vexa.exe  # build executable
+vexa.exe  # run
+```
+## Linux/MacOs
+```bash
+cd src  # go into main directory
+g++ runtime/*.cpp compiler/*.cpp backend/*.cpp -O3 -ffast-math -march=native -Iinclude -o vexa  # build executable
+./vexa  # run
+```
