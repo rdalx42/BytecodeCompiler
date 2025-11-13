@@ -123,6 +123,9 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
             comp.bytecode += "STORE " + nd->value + "\n"; // store return value
 
             // Store parameters at function root scope (outside block)
+
+            comp.bytecode+="BLOCK_START\n";
+
             if(!nd->children.empty() && !nd->children[0]->children.empty()){
                 for(int j = nd->children[0]->children.size() - 1; j >= 0; j--){
                     comp.bytecode += "STORE " + nd->children[0]->children[j]->value + "\n";
@@ -141,6 +144,7 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
             }
 
             // End body block
+            comp.bytecode+="BLOCK_END\n";
             comp.bytecode += "BLOCK_END\n";
 
             // Return label
@@ -156,31 +160,29 @@ void generate_bytecode(COMPILER& comp, AST_NODE* nd) {
             return;
         }
 
-        case AST_RETURN:{
-            
-            in_return=true;
-            if(current_function_name == ""){
+       case AST_RETURN: {
+            in_return = true;
+
+            if (current_function_name == "") {
                 display_err("Can't return value outside of a function");
                 return;
             }
 
-            if(!nd->children.empty()){
-                generate_bytecode(comp,nd->children[0]);
-                comp.bytecode+="STORE " + current_function_name; // store current function name
-                comp.bytecode+="\n";
-                comp.bytecode+="GOTO_FUNCTION_RETURN_LABEL_"+current_function_name; // goto return endpoint (scope managing is done by the compiler already)
-                comp.bytecode+="\n";
-                //std::cout<<"adding block end\n";
-            }else{
-                comp.bytecode+="PUSH 0\n"; // <-- set to default 0 value
-                comp.bytecode+="STORE " + current_function_name; 
-                comp.bytecode+="\n";
-                comp.bytecode+="GOTO_FUNCTION_RETURN_LABEL_"+current_function_name;
-                comp.bytecode+="\n";
+            if (!nd->children.empty()) {
+                // Evaluate return expression
+                generate_bytecode(comp, nd->children[0]);
+                // Store in function name (return slot)
+                comp.bytecode += "STORE " + current_function_name + "\n";
+            } else {
+                // Default return 0
+                comp.bytecode += "PUSH 0\n";
+                comp.bytecode += "STORE " + current_function_name + "\n";
             }
 
-            in_return = false;
+            // End function execution cleanly
+            comp.bytecode += "RET\n";
 
+            in_return = false;
             return;
         }
 
@@ -803,10 +805,12 @@ void compile(COMPILER& comp) {
                     return;
                 }
 
-                // Get the top function frame
                 FUNCTION_FRAME frame = comp.function_call_stack.top_frame();
 
                 // Garbage collect all values pushed by this function call
+                
+                
+                
                 while (comp.memory.operation_stack.top > frame.stack_mark) {
                     VALUE& val = comp.memory.operation_stack.peek();
                     val.clear_val();
@@ -816,8 +820,10 @@ void compile(COMPILER& comp) {
                 // Jump back to the caller
                 i = frame.retpos;
 
+                
                 // Pop the frame
                 comp.function_call_stack.pop();
+                
                 break;
             }
 
@@ -825,16 +831,17 @@ void compile(COMPILER& comp) {
             case TOKEN_T::BYTECODE_GOTO:{
                 
                 int pos = *tok.jump_pos;
+                int target_depth = *tok.scope_level;
 
                 if(tok.goto_check_union.is_function_start == true){ // recursive function call: don't delete root scope at 0
-                    while(comp.memory.current_stack_amount>1){
+                    while(comp.memory.current_stack_amount>target_depth){
                         comp.memory.del_stack();
                         comp.memory.current_stack_amount--;
                     }
 
                     comp.function_call_stack.push(i+1,comp.memory.operation_stack.top);
                 }else{
-                    int target_depth = *tok.scope_level;
+                    
                     while(comp.memory.current_stack_amount>target_depth){
                         comp.memory.del_stack();
                         comp.memory.current_stack_amount--;
