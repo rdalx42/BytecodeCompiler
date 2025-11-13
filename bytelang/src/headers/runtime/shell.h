@@ -5,9 +5,10 @@
 #include <string>
 
 struct SHELL{
-    std::string shell_content;
+    std::string filename;
 };
 
 void doshell(SHELL& sh);
+void prompt(SHELL& sh);
 
 #endif 
