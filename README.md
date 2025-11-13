@@ -1,15 +1,15 @@
-# Vexa 1.0 
+# Vexa 1.1.0
 
 <h4> A <i>small</i> and <i>compact</i>, <i>lightweight</i> and <i>fast</i> home-made VM programming language </h4>
-<i> made in around ~2.1k LOC, runs a 1-1million loop in ~0.049s</i><br>
+<i> made in around ~2.3k LOC, runs a 1-1million loop in ~0.049s</i><br>
 <br>
 
 
 
-> This is Vexa 1.0, keep in mind that everything is subject to change.<br>
+> This is Vexa 1.1, keep in mind that everything is subject to change.<br>
 > Error handling is currently a bit of a hit or miss.<br>
 > Everything is in early stages and there are more features to come!
-> Currently there a couple of bugs with the function implementation but Im working on dolving them
+> Small VM bugs can occur!
 
 <br>
 
@@ -90,10 +90,14 @@ goto ::hi
 <h3>Functions (Beta)</h3>
 
 <h4>
-    Functions in Vexa have a simple design, a function can  <br>
-    only recurse itself if called in return statement, speaking of which <br>
-    a function can't be returned in a binary operation, empty do...end scopes can't be made within functions
+    Functions in Vexa have a simple design, due to this they have some restrictions:
 </h4>
+
+<ul>
+    <li>Functions cannot be nested inside other functions.</li>
+    <li>Functions can't recurse themselves inside their body without a return statement</li>
+    <l1>Raw function calls cannot be used in binary operations (placeholder name required )</l1>
+</ul>
 
 ```Pascal
 // Functions in Vexa
